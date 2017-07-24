@@ -3,6 +3,7 @@
 // Author: A_Enchanter_00
 // version 8.1011 by eqmule, changed the way open doors works
 // version 9.0
+// version 9.1 Fixed Underwater checks, it will now correctly face the loc when in/under water. -eqmule
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=//
 //
 //
@@ -67,7 +68,7 @@
 #include <direct.h>
 
 PreSetup("MQ2AdvPath");
-PLUGIN_VERSION(9.0);
+PLUGIN_VERSION(9.1);
 
 
 #define       FOLLOW_OFF				0
@@ -234,15 +235,15 @@ void DoPlayWindow(void);
 
 int	iShowDoor = 1;				// AutoOpenDoor = true
 int	iShowLoop = 0;				// PlayLoop     = false
-int	iShowReverse = 0;			// PlayReverse  = false
+int	iShowReverse = 0;				// PlayReverse  = false
 int	iShowSmart = 1;				// PlaySmart	= false
 int	iShowZone = 1;				// PlayZone		= false
 int iShowEval = 1;				// PlayEval		= true
 int iShowPause = 0;				// StatusState  = STATUS_OFF | STATUS_ON | STATUS_PAUSED
 int iShowSlow = 0;				// PlaySlow		= false
 int	iShowStuck = 0;				// -- removed
-int	iShowBreakPath = 0;			// -- removed
-int	iShowBreakFollow = 0;		// -- removed
+int	iShowBreakPath = 0;				// -- removed
+int	iShowBreakFollow = 0;				// -- removed
 
 										///////////////////////////////////////////////////////////////////////////////
 										////
@@ -585,8 +586,13 @@ void DestroyMyWindow(void)
 	}
 }
 
-PLUGIN_API VOID OnCleanUI(VOID) { DestroyMyWindow(); }
-PLUGIN_API VOID OnReloadUI(VOID) { if (gGameState == GAMESTATE_INGAME && pCharSpawn) CreateMyWindow(); }
+PLUGIN_API VOID OnCleanUI(VOID) {
+	DestroyMyWindow(); 
+}
+PLUGIN_API VOID OnReloadUI(VOID) {
+	if (gGameState == GAMESTATE_INGAME && pCharSpawn)
+		CreateMyWindow();
+}
 
 void ReadWindowINI(PCSIDLWND pWindow)
 {
@@ -603,11 +609,11 @@ void ReadWindowINI(PCSIDLWND pWindow)
 	pWindow->FadeToAlpha = GetPrivateProfileInt("Settings", "FadeToAlpha", 255, INIFileName);
 	pWindow->BGType = GetPrivateProfileInt("Settings", "BGType", 1, INIFileName);
 	ARGBCOLOR col = { 0 };
-	col.ARGB = pWindow->BGColor;
 	col.A = GetPrivateProfileInt("Settings", "BGTint.alpha", 255, INIFileName);
 	col.R = GetPrivateProfileInt("Settings", "BGTint.red", 0, INIFileName);
-	col.G =  GetPrivateProfileInt("Settings", "BGTint.green", 0, INIFileName);
+	col.G = GetPrivateProfileInt("Settings", "BGTint.green", 0, INIFileName);
 	col.B = GetPrivateProfileInt("Settings", "BGTint.blue", 0, INIFileName);
+	pWindow->BGColor = col.ARGB;
 }
 template <unsigned int _Size>LPSTR SafeItoa(int _Value,char(&_Buffer)[_Size], int _Radix)
 {
@@ -1220,19 +1226,29 @@ void DoStop() {
 }
 
 void LookAt(FLOAT X, FLOAT Y, FLOAT Z) {
-	gFaceAngle = (atan2(X - GetCharInfo()->pSpawn->X, Y - GetCharInfo()->pSpawn->Y)  * 256.0f / PI);
-	if (gFaceAngle >= 512.0f) gFaceAngle -= 512.0f;
-	if (gFaceAngle<0.0f) gFaceAngle += 512.0f;
-	((PSPAWNINFO)pCharSpawn)->Heading = (FLOAT)gFaceAngle;
-	gFaceAngle = 10000.0f;
+	PCHARINFO pChar = GetCharInfo();
 
-	if (GetCharInfo()->pSpawn->UnderWater == 5) GetCharInfo()->pSpawn->CameraAngle = (FLOAT)(atan2(Z - GetCharInfo()->pSpawn->Z, (FLOAT)GetDistance(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, X, Y)) * 256.0f / PI);
-	else if (GetCharInfo()->pSpawn->mPlayerPhysicsClient.Levitate == 2) {
-		if (Z < GetCharInfo()->pSpawn->Z - 5) GetCharInfo()->pSpawn->CameraAngle = -45.0f;
-		else if (Z > GetCharInfo()->pSpawn->Z + 5) GetCharInfo()->pSpawn->CameraAngle = 45.0f;
-		else GetCharInfo()->pSpawn->CameraAngle = 0.0f;
+	float angle = (atan2(X - pChar->pSpawn->X, Y - pChar->pSpawn->Y)  * 256.0f / (float)PI);
+	if (angle >= 512.0f)
+		angle -= 512.0f;
+	if (angle<0.0f)
+		angle += 512.0f;
+	pChar->pSpawn->Heading = (FLOAT)angle;
+	gFaceAngle = 10000.0f;
+	if (pChar->pSpawn->FeetWet) {
+		float locdist = GetDistance(pChar->pSpawn->X, pChar->pSpawn->Y, X, Y);
+		pChar->pSpawn->CameraAngle = (atan2(Z + 0.0f * 0.9f - pChar->pSpawn->Z - pChar->pSpawn->AvatarHeight * 0.9f, locdist) * 256.0f / (float)PI);
 	}
-	else GetCharInfo()->pSpawn->CameraAngle = 0.0f;
+	else if (pChar->pSpawn->mPlayerPhysicsClient.Levitate == 2) {
+		if (Z < pChar->pSpawn->Z - 5)
+			pChar->pSpawn->CameraAngle = -45.0f;
+		else if (Z > pChar->pSpawn->Z + 5)
+			pChar->pSpawn->CameraAngle = 45.0f;
+		else
+			pChar->pSpawn->CameraAngle = 0.0f;
+	}
+	else
+		pChar->pSpawn->CameraAngle = 0.0f;
 	gLookAngle = 10000.0f;
 }
 
@@ -1383,7 +1399,7 @@ VOID SavePath(PCHAR PathName, PCHAR PathZone) {
 	WriteChatf("[MQ2AdvPath] Saveing Path: %s Zone: %s", PathName, PathZone);
 	CHAR INIFileNameTemp[400];
 	CHAR szTemp[MAX_STRING] = { 0 };
-	char szTemp2[MAX_STRING];
+	CHAR szTemp2[MAX_STRING] = { 0 };
 
 	unsigned long thisWaypoint = 0;
 	unsigned long DeleteWaypoint = 0;
@@ -2499,7 +2515,7 @@ PLUGIN_API VOID OnEndZone(VOID) {
 
 
 PLUGIN_API VOID OnRemoveSpawn(PSPAWNINFO pSpawn) {
-	DebugSpewAlways("MQ2AdvPath::OnRemoveSpawn(%s)", pSpawn->Name);
+	//DebugSpewAlways("MQ2AdvPath::OnRemoveSpawn(%s)", pSpawn->Name);
 	if (pSpawn->SpawnID == MonitorID) MonitorID = 0;
 }
 
