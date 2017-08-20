@@ -1168,8 +1168,10 @@ void DoFwd(bool hold, bool walk) {
 		DoWalk(walk);
 		DoBck(false);
 		//if( !GetCharInfo()->pSpawn->SpeedRun || GetCharInfo()->pSpawn->PossiblyStuck || !((((gbMoving) && GetCharInfo()->pSpawn->SpeedRun==0.0f) && (GetCharInfo()->pSpawn->Mount ==  NULL )) || (fabs(FindSpeed((PSPAWNINFO)pCharSpawn)) > 0.0f )) )
-		if (!GetCharInfo()->pSpawn->SpeedRun && held)
-			held = false;
+		if (!GetCharInfo()->pSpawn->SpeedRun && held) {
+		    MQ2Globals::ExecuteCmd(FindMappableCommand("forward"), 0, 0);
+	        held = false;
+		}
 		if (!held) MQ2Globals::ExecuteCmd(FindMappableCommand("forward"), 1, 0);
 		held = true;
 	}
