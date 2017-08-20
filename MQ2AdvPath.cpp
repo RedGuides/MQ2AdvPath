@@ -1170,7 +1170,7 @@ void DoFwd(bool hold, bool walk) {
 		//if( !GetCharInfo()->pSpawn->SpeedRun || GetCharInfo()->pSpawn->PossiblyStuck || !((((gbMoving) && GetCharInfo()->pSpawn->SpeedRun==0.0f) && (GetCharInfo()->pSpawn->Mount ==  NULL )) || (fabs(FindSpeed((PSPAWNINFO)pCharSpawn)) > 0.0f )) )
 		if (!GetCharInfo()->pSpawn->SpeedRun && held) {
 		    MQ2Globals::ExecuteCmd(FindMappableCommand("forward"), 0, 0);
-	        held = false;
+			held = false;
 		}
 		if (!held) MQ2Globals::ExecuteCmd(FindMappableCommand("forward"), 1, 0);
 		held = true;
@@ -1235,7 +1235,7 @@ void LookAt(FLOAT X, FLOAT Y, FLOAT Z) {
 		angle -= 512.0f;
 	if (angle<0.0f)
 		angle += 512.0f;
-	pChar->pSpawn->Heading = (FLOAT)angle;
+	((PSPAWNINFO)pCharSpawn)->Heading = (FLOAT)angle;
 	gFaceAngle = 10000.0f;
 	if (pChar->pSpawn->FeetWet) {
 		float locdist = GetDistance(pChar->pSpawn->X, pChar->pSpawn->Y, X, Y);
@@ -1243,9 +1243,9 @@ void LookAt(FLOAT X, FLOAT Y, FLOAT Z) {
 	}
 	else if (pChar->pSpawn->mPlayerPhysicsClient.Levitate == 2) {
 		if (Z < pChar->pSpawn->Z - 5)
-			pChar->pSpawn->CameraAngle = -45.0f;
+			pChar->pSpawn->CameraAngle = -64.0f;
 		else if (Z > pChar->pSpawn->Z + 5)
-			pChar->pSpawn->CameraAngle = 45.0f;
+			pChar->pSpawn->CameraAngle = 64.0f;
 		else
 			pChar->pSpawn->CameraAngle = 0.0f;
 	}
