@@ -61,7 +61,7 @@
 //   /advpath save (saves the changes to customsearch to the advpath.ini settings file)
 //
 #include "../MQ2Plugin.h"
-
+using namespace std;
 #include <vector>
 #include <list>
 #include <queue>
