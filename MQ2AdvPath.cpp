@@ -4,6 +4,7 @@
 // version 8.1011 by eqmule, changed the way open doors works
 // version 9.0
 // version 9.1 Fixed Underwater checks, it will now correctly face the loc when in/under water. -eqmule
+// version 9.2 SwiftyMUSE 01-07-2019 Removed foreground detection since its in core
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=//
 //
 //
@@ -61,15 +62,15 @@
 //   /advpath save (saves the changes to customsearch to the advpath.ini settings file)
 //
 #include "../MQ2Plugin.h"
-using namespace std;
+
 #include <vector>
 #include <list>
 #include <queue>
 #include <direct.h>
 
 PreSetup("MQ2AdvPath");
-PLUGIN_VERSION(9.1);
-
+PLUGIN_VERSION(9.2);
+using namespace std;
 
 #define       FOLLOW_OFF				0
 #define       FOLLOW_FOLLOWING			1
@@ -159,10 +160,6 @@ long MaxChkPointDist = 0;
 
 list<Position>	FollowPath;			// FollowPath
 queue<string>   PathList;
-
-HMODULE EQWhMod = 0;
-typedef HWND(__stdcall *fEQW_GetDisplayWindow)(VOID);
-fEQW_GetDisplayWindow EQW_GetDisplayWindow = 0;
 
 class MQ2AdvPathType *pAdvPathType = 0;
 
@@ -1168,10 +1165,8 @@ void DoFwd(bool hold, bool walk) {
 		DoWalk(walk);
 		DoBck(false);
 		//if( !GetCharInfo()->pSpawn->SpeedRun || GetCharInfo()->pSpawn->PossiblyStuck || !((((gbMoving) && GetCharInfo()->pSpawn->SpeedRun==0.0f) && (GetCharInfo()->pSpawn->Mount ==  NULL )) || (fabs(FindSpeed((PSPAWNINFO)pCharSpawn)) > 0.0f )) )
-		if (!GetCharInfo()->pSpawn->SpeedRun && held) {
-		    MQ2Globals::ExecuteCmd(FindMappableCommand("forward"), 0, 0);
+		if (!GetCharInfo()->pSpawn->SpeedRun && held)
 			held = false;
-		}
 		if (!held) MQ2Globals::ExecuteCmd(FindMappableCommand("forward"), 1, 0);
 		held = true;
 	}
@@ -1228,30 +1223,34 @@ void DoStop() {
 }
 
 void LookAt(FLOAT X, FLOAT Y, FLOAT Z) {
-	PCHARINFO pChar = GetCharInfo();
-
-	float angle = (atan2(X - pChar->pSpawn->X, Y - pChar->pSpawn->Y)  * 256.0f / (float)PI);
-	if (angle >= 512.0f)
-		angle -= 512.0f;
-	if (angle<0.0f)
-		angle += 512.0f;
-	((PSPAWNINFO)pCharSpawn)->Heading = (FLOAT)angle;
-	gFaceAngle = 10000.0f;
-	if (pChar->pSpawn->FeetWet) {
-		float locdist = GetDistance(pChar->pSpawn->X, pChar->pSpawn->Y, X, Y);
-		pChar->pSpawn->CameraAngle = (atan2(Z + 0.0f * 0.9f - pChar->pSpawn->Z - pChar->pSpawn->AvatarHeight * 0.9f, locdist) * 256.0f / (float)PI);
+	if (PCHARINFO pChar = GetCharInfo())
+	{
+		if (pChar->pSpawn)
+		{
+			float angle = (atan2(X - pChar->pSpawn->X, Y - pChar->pSpawn->Y)  * 256.0f / (float)PI);
+			if (angle >= 512.0f)
+				angle -= 512.0f;
+			if (angle < 0.0f)
+				angle += 512.0f;
+			((PSPAWNINFO)pCharSpawn)->Heading = (FLOAT)angle;
+			gFaceAngle = 10000.0f;
+			if (pChar->pSpawn->FeetWet) {
+				float locdist = GetDistance(pChar->pSpawn->X, pChar->pSpawn->Y, X, Y);
+				pChar->pSpawn->CameraAngle = (atan2(Z + 0.0f * 0.9f - pChar->pSpawn->Z - pChar->pSpawn->AvatarHeight * 0.9f, locdist) * 256.0f / (float)PI);
+			}
+			else if (pChar->pSpawn->mPlayerPhysicsClient.Levitate == 2) {
+				if (Z < pChar->pSpawn->Z - 5)
+					pChar->pSpawn->CameraAngle = -64.0f;
+				else if (Z > pChar->pSpawn->Z + 5)
+					pChar->pSpawn->CameraAngle = 64.0f;
+				else
+					pChar->pSpawn->CameraAngle = 0.0f;
+			}
+			else
+				pChar->pSpawn->CameraAngle = 0.0f;
+			gLookAngle = 10000.0f;
+		}
 	}
-	else if (pChar->pSpawn->mPlayerPhysicsClient.Levitate == 2) {
-		if (Z < pChar->pSpawn->Z - 5)
-			pChar->pSpawn->CameraAngle = -64.0f;
-		else if (Z > pChar->pSpawn->Z + 5)
-			pChar->pSpawn->CameraAngle = 64.0f;
-		else
-			pChar->pSpawn->CameraAngle = 0.0f;
-	}
-	else
-		pChar->pSpawn->CameraAngle = 0.0f;
-	gLookAngle = 10000.0f;
 }
 
 VOID ClearAll() {
@@ -1545,9 +1544,6 @@ VOID FollowSpawn() {
 		list<Position>::iterator CurList = FollowPath.begin();
 		list<Position>::iterator EndList = FollowPath.end();
 
-		HWND EQhWnd = *(HWND*)EQADDR_HWND;
-		if (EQW_GetDisplayWindow) EQhWnd = EQW_GetDisplayWindow();
-
 		bool run = false;
 
 		if (CurList->Warping && GetDistance3D(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z, CurList->X, CurList->Y, CurList->Z) > 50) {
@@ -1572,7 +1568,7 @@ VOID FollowSpawn() {
 
 
 
-		//		if( ( GetForegroundWindow()==EQhWnd && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > DISTANCE_BETWEN_LOG ) || ( GetForegroundWindow()!=EQhWnd && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > (DISTANCE_BETWEN_LOG+10) ) ) {
+		//		if( ( gbInForeground && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > DISTANCE_BETWEN_LOG ) || ( !gbInForeground && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > (DISTANCE_BETWEN_LOG+10) ) ) {
 		if (GetDistance(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, CurList->X, CurList->Y) > DISTANCE_BETWEN_LOG + DistanceMod) {
 			LookAt(CurList->X, CurList->Y, CurList->Z);
 			if ((PauseDoor - (long)clock()) < 300) {
@@ -1662,9 +1658,6 @@ VOID EvalWaypoint(list<Position>::iterator &CurList)
 
 VOID NextWaypoint()
 {
-	HWND EQhWnd = *(HWND*)EQADDR_HWND;
-	if (EQW_GetDisplayWindow) EQhWnd = EQW_GetDisplayWindow();
-
 	if (PlayOne)
 	{
 		PlayOne = false;
@@ -1695,7 +1688,7 @@ VOID NextWaypoint()
 		}
 		ResetPathEval();
 	}
-	else if (GetForegroundWindow() == EQhWnd || PlaySlow || PlayEval)
+	else if (gbInForeground || PlaySlow || PlayEval)
 	{
 		PlayWaypoint += PlayDirection;
 	}
@@ -2390,7 +2383,6 @@ VOID MQAdvPathCommand(PSPAWNINFO pChar, PCHAR szLine) {
 // Called once, when the plugin is to initialize
 PLUGIN_API VOID InitializePlugin(VOID) {
 	DebugSpewAlways("Initializing MQ2AdvPath");
-	if (EQWhMod = GetModuleHandle("eqw.dll")) EQW_GetDisplayWindow = (fEQW_GetDisplayWindow)GetProcAddress(EQWhMod, "EQW_GetDisplayWindow");
 
 	AdvPathStatus = true;
 
