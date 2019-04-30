@@ -340,13 +340,13 @@ public:
 	void ShowWin(void)
 	{
 		((CXWnd*)this)->Show(1, 1);
-		dShow = 1;
+		SetVisible(true);
 	}
 
 	void HideWin(void)
 	{
 		((CXWnd*)this)->Show(0, 0);
-		dShow = 0;
+		SetVisible(false);
 	}
 
 
@@ -394,13 +394,17 @@ public:
 	{
 		if (StatusState == STATUS_ON && FollowState == FOLLOW_RECORDING) // Recording a path
 		{
-			SetCXStr(&APW_PlayButton->WindowText, "Save");
-			SetCXStr(&APW_RecordButton->WindowText, "CheckPoint");
+			APW_PlayButton->CSetWindowText("Save");
+			//SetCXStr(&APW_PlayButton->WindowText, "Save");
+			APW_RecordButton->CSetWindowText("CheckPoint");
+			//SetCXStr(&APW_RecordButton->WindowText, "CheckPoint");
 		}
 		else
 		{
-			SetCXStr(&APW_PlayButton->WindowText, "Play");
-			SetCXStr(&APW_RecordButton->WindowText, "Record");
+			APW_PlayButton->CSetWindowText("Play");
+			//SetCXStr(&APW_PlayButton->WindowText, "Play");
+			APW_RecordButton->CSetWindowText("Record");
+			//SetCXStr(&APW_RecordButton->WindowText, "Record");
 		}
 
 		if (StatusState == STATUS_ON && FollowState == FOLLOW_PLAYING && checkpoint)  // Playing a path
@@ -594,23 +598,24 @@ PLUGIN_API VOID OnReloadUI(VOID) {
 void ReadWindowINI(PCSIDLWND pWindow)
 {
 	CHAR Buffer[MAX_STRING] = { 0 };
-	pWindow->Location.top = GetPrivateProfileInt("Settings", "ChatTop", 357, INIFileName);
-	pWindow->Location.bottom = GetPrivateProfileInt("Settings", "ChatBottom", 620, INIFileName);
-	pWindow->Location.left = GetPrivateProfileInt("Settings", "ChatLeft", 164, INIFileName);
-	pWindow->Location.right = GetPrivateProfileInt("Settings", "ChatRight", 375, INIFileName);
-	pWindow->Locked = (GetPrivateProfileInt("Settings", "Locked", 0, INIFileName) ? true:false);
-	pWindow->Fades = (GetPrivateProfileInt("Settings", "Fades", 1, INIFileName) ? true:false);
-	pWindow->FadeDelay = GetPrivateProfileInt("Settings", "Delay", 2000, INIFileName);
-	pWindow->FadeDuration = GetPrivateProfileInt("Settings", "Duration", 500, INIFileName);
-	pWindow->Alpha = GetPrivateProfileInt("Settings", "Alpha", 255, INIFileName);
-	pWindow->FadeToAlpha = GetPrivateProfileInt("Settings", "FadeToAlpha", 255, INIFileName);
-	pWindow->BGType = GetPrivateProfileInt("Settings", "BGType", 1, INIFileName);
+	pWindow->SetLocation({ (LONG)GetPrivateProfileInt("Settings", "ChatLeft", 164, INIFileName),
+		(LONG)GetPrivateProfileInt("Settings", "ChatTop", 357, INIFileName),
+		(LONG)GetPrivateProfileInt("Settings", "ChatRight", 375, INIFileName),
+		(LONG)GetPrivateProfileInt("Settings", "ChatBottom", 620, INIFileName) });
+
+	pWindow->SetLocked((GetPrivateProfileInt("Settings", "Locked", 0, INIFileName) ? true:false));
+	pWindow->SetFades((GetPrivateProfileInt("Settings", "Fades", 1, INIFileName) ? true:false));
+	pWindow->SetFadeDelay(GetPrivateProfileInt("Settings", "Delay", 2000, INIFileName));
+	pWindow->SetFadeDuration(GetPrivateProfileInt("Settings", "Duration", 500, INIFileName));
+	pWindow->SetAlpha(GetPrivateProfileInt("Settings", "Alpha", 255, INIFileName));
+	pWindow->SetFadeToAlpha(GetPrivateProfileInt("Settings", "FadeToAlpha", 255, INIFileName));
+	pWindow->SetBGType(GetPrivateProfileInt("Settings", "BGType", 1, INIFileName));
 	ARGBCOLOR col = { 0 };
 	col.A = GetPrivateProfileInt("Settings", "BGTint.alpha", 255, INIFileName);
 	col.R = GetPrivateProfileInt("Settings", "BGTint.red", 0, INIFileName);
 	col.G = GetPrivateProfileInt("Settings", "BGTint.green", 0, INIFileName);
 	col.B = GetPrivateProfileInt("Settings", "BGTint.blue", 0, INIFileName);
-	pWindow->BGColor = col.ARGB;
+	pWindow->SetBGColor(col.ARGB);
 }
 template <unsigned int _Size>LPSTR SafeItoa(int _Value,char(&_Buffer)[_Size], int _Radix)
 {
@@ -623,29 +628,29 @@ template <unsigned int _Size>LPSTR SafeItoa(int _Value,char(&_Buffer)[_Size], in
 void WriteWindowINI(PCSIDLWND pWindow)
 {
 	CHAR szTemp[MAX_STRING] = { 0 };
-	if (pWindow->Minimized)
+	if (pWindow->IsMinimized())
 	{
-		WritePrivateProfileString("Settings", "ChatTop", SafeItoa(pWindow->OldLocation.top, szTemp, 10), INIFileName);
-		WritePrivateProfileString("Settings", "ChatBottom", SafeItoa(pWindow->OldLocation.bottom, szTemp, 10), INIFileName);
-		WritePrivateProfileString("Settings", "ChatLeft", SafeItoa(pWindow->OldLocation.left, szTemp, 10), INIFileName);
-		WritePrivateProfileString("Settings", "ChatRight", SafeItoa(pWindow->OldLocation.right, szTemp, 10), INIFileName);
+		WritePrivateProfileString("Settings", "ChatTop", SafeItoa(pWindow->GetOldLocation().top, szTemp, 10), INIFileName);
+		WritePrivateProfileString("Settings", "ChatBottom", SafeItoa(pWindow->GetOldLocation().bottom, szTemp, 10), INIFileName);
+		WritePrivateProfileString("Settings", "ChatLeft", SafeItoa(pWindow->GetOldLocation().left, szTemp, 10), INIFileName);
+		WritePrivateProfileString("Settings", "ChatRight", SafeItoa(pWindow->GetOldLocation().right, szTemp, 10), INIFileName);
 	}
 	else
 	{
-		WritePrivateProfileString("Settings", "ChatTop", SafeItoa(pWindow->Location.top, szTemp, 10), INIFileName);
-		WritePrivateProfileString("Settings", "ChatBottom", SafeItoa(pWindow->Location.bottom, szTemp, 10), INIFileName);
-		WritePrivateProfileString("Settings", "ChatLeft", SafeItoa(pWindow->Location.left, szTemp, 10), INIFileName);
-		WritePrivateProfileString("Settings", "ChatRight", SafeItoa(pWindow->Location.right, szTemp, 10), INIFileName);
+		WritePrivateProfileString("Settings", "ChatTop", SafeItoa(pWindow->GetLocation().top, szTemp, 10), INIFileName);
+		WritePrivateProfileString("Settings", "ChatBottom", SafeItoa(pWindow->GetLocation().bottom, szTemp, 10), INIFileName);
+		WritePrivateProfileString("Settings", "ChatLeft", SafeItoa(pWindow->GetLocation().left, szTemp, 10), INIFileName);
+		WritePrivateProfileString("Settings", "ChatRight", SafeItoa(pWindow->GetLocation().right, szTemp, 10), INIFileName);
 	}
-	WritePrivateProfileString("Settings", "Locked", SafeItoa(pWindow->Locked, szTemp, 10), INIFileName);
-	WritePrivateProfileString("Settings", "Fades", SafeItoa(pWindow->Fades, szTemp, 10), INIFileName);
-	WritePrivateProfileString("Settings", "Delay", SafeItoa(pWindow->FadeDelay, szTemp, 10), INIFileName);
-	WritePrivateProfileString("Settings", "Duration", SafeItoa(pWindow->FadeDuration, szTemp, 10), INIFileName);
-	WritePrivateProfileString("Settings", "Alpha", SafeItoa(pWindow->Alpha, szTemp, 10), INIFileName);
-	WritePrivateProfileString("Settings", "FadeToAlpha", SafeItoa(pWindow->FadeToAlpha, szTemp, 10), INIFileName);
-	WritePrivateProfileString("Settings", "BGType", SafeItoa(pWindow->BGType, szTemp, 10), INIFileName);
+	WritePrivateProfileString("Settings", "Locked", SafeItoa(pWindow->IsLocked(), szTemp, 10), INIFileName);
+	WritePrivateProfileString("Settings", "Fades", SafeItoa(pWindow->GetFades(), szTemp, 10), INIFileName);
+	WritePrivateProfileString("Settings", "Delay", SafeItoa(pWindow->GetFadeDelay(), szTemp, 10), INIFileName);
+	WritePrivateProfileString("Settings", "Duration", SafeItoa(pWindow->GetFadeDuration(), szTemp, 10), INIFileName);
+	WritePrivateProfileString("Settings", "Alpha", SafeItoa(pWindow->GetAlpha(), szTemp, 10), INIFileName);
+	WritePrivateProfileString("Settings", "FadeToAlpha", SafeItoa(pWindow->GetFadeToAlpha(), szTemp, 10), INIFileName);
+	WritePrivateProfileString("Settings", "BGType", SafeItoa(pWindow->GetBGType(), szTemp, 10), INIFileName);
 	ARGBCOLOR col = { 0 };
-	col.ARGB = pWindow->BGColor;
+	col.ARGB = pWindow->GetBGColor();
 	WritePrivateProfileString("Settings", "BGTint.alpha", SafeItoa(col.A, szTemp, 10), INIFileName);
 	WritePrivateProfileString("Settings", "BGTint.red", SafeItoa(col.R, szTemp, 10), INIFileName);
 	WritePrivateProfileString("Settings", "BGTint.green", SafeItoa(col.G, szTemp, 10), INIFileName);
@@ -2501,7 +2506,7 @@ PLUGIN_API VOID OnEndZone(VOID) {
 	if (FollowState == FOLLOW_RECORDING && StatusState && SavePathName[0] != NULL && SavePathZone[0] != NULL)
 		SavePath(SavePathName, SavePathZone);
 	ClearAll();
-	if (MyWnd && MyWnd->dShow) {
+	if (MyWnd && MyWnd->IsVisible()) {
 		DestroyMyWindow();
 		DoPlayWindow();
 	}
