@@ -50,44 +50,40 @@
 //
 //   /Play Command
 //   /play path on|off pause|unpause loop|noloop normal|reverse smart|nosmart door|nodoor fast|slow eval|noeval zone|nozone list listcustom show stop flee|noflee setflag1-setflag9 n resetflags
-//         setflag1 n (n can be any single alpha character) default is 'y' and resetflags sets all flags back to 'y' 
+//         setflag1 n (n can be any single alpha character) default is 'y' and resetflags sets all flags back to 'y'
 //   /advpath Command
 //   /advpath on|off pull|nopull customsearch save help
 //
 //   *************************************************************************************************************
 //   Pulling mode will automatically /play reverse when the end of the current path is reached. Kind of like loop, but with
-//   some additional logic build in. 
+//   some additional logic build in.
 //
 //   /advpath customsearch apath (sets the value of costumsearch = apath)
 //   /advpath save (saves the changes to customsearch to the advpath.ini settings file)
 //
 #include "../MQ2Plugin.h"
 
-#include <vector>
-#include <list>
-#include <queue>
 #include <direct.h>
 
 PreSetup("MQ2AdvPath");
 PLUGIN_VERSION(9.2);
-using namespace std;
 
-#define       FOLLOW_OFF				0
-#define       FOLLOW_FOLLOWING			1
-#define       FOLLOW_PLAYING			2
-#define       FOLLOW_RECORDING			3
+constexpr int FOLLOW_OFF = 0;
+constexpr int FOLLOW_FOLLOWING = 1;
+constexpr int FOLLOW_PLAYING = 2;
+constexpr int FOLLOW_RECORDING = 3;
 
-#define       STATUS_OFF				0
-#define       STATUS_ON					1
-#define       STATUS_PAUSED				2
+constexpr int STATUS_OFF = 0;
+constexpr int STATUS_ON = 1;
+constexpr int STATUS_PAUSED = 2;
 
-#define       DISTANCE_BETWEN_LOG		5
-#define       DISTANCE_OPEN_DOOR_CLOSE	10
-#define       ANGEL_OPEN_DOOR_CLOSE		50.0
-#define       DISTANCE_OPEN_DOOR_LONG	15
-#define       ANGEL_OPEN_DOOR_LONG		95.0
+constexpr float DISTANCE_BETWEN_LOG = 5;
+constexpr float DISTANCE_OPEN_DOOR_CLOSE = 10;
+constexpr float ANGLE_OPEN_DOOR_CLOSE = 50;
+constexpr float DISTANCE_OPEN_DOOR_LONG = 15;
+constexpr float ANGLE_OPEN_DOOR_LONG = 95;
 
-#define       ZONE_TIME					6000
+constexpr uint64_t ZONE_TIME = 6000;
 
 // Timer Structure
 struct Position {
@@ -103,19 +99,19 @@ struct Position {
 //struct PathInfo {
 //	char Path[MAX_STRING];
 //    bool PlaySmart;
-//    bool PlayEval;	
+//    bool PlayEval;
 //    int  PlayDirection;				// Play Direction - replaces PlayReverse
 //    long PlayWaypoint;
 //} pPathInfo;
 
-long FollowState = FOLLOW_OFF;		// Active?
-long StatusState = STATUS_OFF;		// Active?
+int FollowState = FOLLOW_OFF;		// Active?
+int StatusState = STATUS_OFF;		// Active?
 
-long FollowSpawnDistance = 10;		// Active?
+int FollowSpawnDistance = 10;		// Active?
 
-long FollowIdle = 0;				// FollowIdle time when Follow on?
-long NextClickDoor = 0;				// NextClickDoor when Follow on?
-long PauseDoor = 0;					// PauseDoor paused Follow on and near door?
+int FollowIdle = 0;				// FollowIdle time when Follow on?
+int NextClickDoor = 0;				// NextClickDoor when Follow on?
+int PauseDoor = 0;					// PauseDoor paused Follow on and near door?
 bool AutoOpenDoor = true;
 
 bool PlayOne = false;			// Play one frame only - used for debugging
@@ -128,17 +124,17 @@ bool PlayLoop = false;			// Play Loop? a->b a->b a->b a->b ....
 								//bool PlayReturn  = false;			// Play Return? a->b b->a
 long PlayWaypoint = 0;
 bool PlayZone = false;
-long PlayZoneTick = 0;
-long unPauseTick = 0;
+uint64_t PlayZoneTick = 0;
+uint64_t unPauseTick = 0;
 bool AdvPathStatus = true;
 
 // Pulling Mode Variables Here
-bool PullMode = false;         // Mode for running paths when pulling. 
+bool PullMode = false;         // Mode for running paths when pulling.
 bool IFleeing = false;         // Setting this will play back pathing in reverse direction
 bool SaveMapPath   = false;         // to control clearing the map path
 CHAR advFlag[11] = { 'y','y','y','y','y','y','y','y','y','y','\0' }; // Flags that can be used for controlling pathing.
 bool StopState = false;
-CHAR custSearch[64] = { NULL };
+CHAR custSearch[64] = { 0 };
 long begWayPoint   = 0;
 long endWayPoint   = 0;
 
@@ -154,19 +150,19 @@ FLOAT MeMonitorY = 0;					// MeMonitorY monitor your self
 FLOAT MeMonitorZ = 0;					// MeMonitorZ monitor your self
 
 CHAR Buffer[MAX_STRING] = { 0 };					// Buffer for String manipulatsion
-CHAR SavePathName[MAX_STRING] = { NULL };			// Buffer for Save Path Name
-CHAR SavePathZone[MAX_STRING] = { NULL };			// Buffer for Save Zone Name
+CHAR SavePathName[MAX_STRING] = { 0 };			// Buffer for Save Path Name
+CHAR SavePathZone[MAX_STRING] = { 0 };			// Buffer for Save Zone Name
 long MaxChkPointDist = 0;
 
-list<Position>	FollowPath;			// FollowPath
-queue<string>   PathList;
+std::list<Position>	FollowPath;			// FollowPath
+std::queue<std::string>   PathList;
 
 class MQ2AdvPathType *pAdvPathType = 0;
 
-VOID MQRecordCommand(PSPAWNINFO pChar, PCHAR szLine);
-VOID MQPlayCommand(PSPAWNINFO pChar, PCHAR szLine);
-VOID MQFollowCommand(PSPAWNINFO pChar, PCHAR szLine);
-VOID MQAdvPathCommand(PSPAWNINFO pChar, PCHAR szLine);
+void MQRecordCommand(PSPAWNINFO pChar, PCHAR szLine);
+void MQPlayCommand(PSPAWNINFO pChar, PCHAR szLine);
+void MQFollowCommand(PSPAWNINFO pChar, PCHAR szLine);
+void MQAdvPathCommand(PSPAWNINFO pChar, PCHAR szLine);
 void ReleaseKeys();
 void DoWalk(bool walk = false);
 void DoFwd(bool hold, bool walk = false);
@@ -175,27 +171,26 @@ void DoLft(bool hold);
 void DoRgt(bool hold);
 void DoStop();
 void LookAt(FLOAT X, FLOAT Y, FLOAT Z);
-void NextPath(void);
-VOID SetPathEval(bool Eval);
-VOID ClearAll();
-VOID ClearOne(list<Position>::iterator &CurList);
-VOID AddWaypoint(long SpawnID, bool Warping = false);
+void NextPath();
+void ClearAll();
+void ClearOne(std::list<Position>::iterator &CurList);
+void AddWaypoint(long SpawnID, bool Warping = false);
 PDOOR ClosestDoor();
 bool IsOpenDoor(PDOOR pDoor);
-VOID OpenDoor(bool force = false);
-bool InFront(float X, float Y, float Angel, bool Reverse = false);
-VOID SavePath(PCHAR PathName, PCHAR PathZone);
-VOID LoadPath(PCHAR PathName);
-VOID FollowSpawn();
-VOID FollowWaypoints();
-VOID ClearLag();
-VOID RecordingWaypoints();
+void OpenDoor(bool force = false);
+bool InFront(float X, float Y, float Angle, bool Reverse = false);
+void SavePath(const char* PathName, const char* PathZone);
+void LoadPath(const char* PathName);
+void FollowSpawn();
+void FollowWaypoints();
+void ClearLag();
+void RecordingWaypoints();
 void __stdcall WarpingDetect(unsigned int ID, void *pData, PBLECHVALUE pValues);
-VOID ReplaceWaypointWith(char *s);
-VOID NextWaypoint();
-VOID ShowHelp(int helpFlag);
+void ReplaceWaypointWith(const char* s);
+void NextWaypoint();
+void ShowHelp(int helpFlag);
 
-vector<PMAPLINE>  pFollowPath;
+std::vector<PMAPLINE>  pFollowPath;
 
 unsigned long thisClock = clock();
 unsigned long lastClock = clock();
@@ -218,34 +213,34 @@ long DistanceMod = 0;
 
 void WriteWindowINI(PCSIDLWND pWindow);
 void ReadWindowINI(PCSIDLWND pWindow);
-void DestroyMyWindow(void);
-void CreateMyWindow(void);
-void DoPlayWindow(void);
+void DestroyMyWindow();
+void CreateMyWindow();
+void DoPlayWindow();
 
 ///////////////////////////////////////////////////////////////////////////////
 ////
 //
-//      Global Variables 
+//      Global Variables
 //
 ////
 ///////////////////////////////////////////////////////////////////////////////
 
-int	iShowDoor = 1;				// AutoOpenDoor = true
-int	iShowLoop = 0;				// PlayLoop     = false
-int	iShowReverse = 0;				// PlayReverse  = false
-int	iShowSmart = 1;				// PlaySmart	= false
-int	iShowZone = 1;				// PlayZone		= false
-int iShowEval = 1;				// PlayEval		= true
-int iShowPause = 0;				// StatusState  = STATUS_OFF | STATUS_ON | STATUS_PAUSED
-int iShowSlow = 0;				// PlaySlow		= false
-int	iShowStuck = 0;				// -- removed
-int	iShowBreakPath = 0;				// -- removed
-int	iShowBreakFollow = 0;				// -- removed
+int iShowDoor = 1;              // AutoOpenDoor = true
+int iShowLoop = 0;              // PlayLoop     = false
+int iShowReverse = 0;           // PlayReverse  = false
+int iShowSmart = 1;             // PlaySmart    = false
+int iShowZone = 1;              // PlayZone     = false
+int iShowEval = 1;              // PlayEval     = true
+int iShowPause = 0;             // StatusState  = STATUS_OFF | STATUS_ON | STATUS_PAUSED
+int iShowSlow = 0;              // PlaySlow     = false
+int iShowStuck = 0;             // -- removed
+int iShowBreakPath = 0;         // -- removed
+int iShowBreakFollow = 0;       // -- removed
 
 										///////////////////////////////////////////////////////////////////////////////
 										////
 										//
-										//      Window Class - Uses custom XLM Window - MQUI_AdvPathWnd.xml 
+										//      Window Class - Uses custom XLM Window - MQUI_AdvPathWnd.xml
 										//
 										////
 										///////////////////////////////////////////////////////////////////////////////
@@ -357,7 +352,7 @@ public:
 		GetCXStr(Str.Ptr, s, m);
 	}
 
-	void AddINIListItem(char *s)
+	void AddINIListItem(const char* s)
 	{
 		APW_INIList->AddString(s, 0xFFFFFFFF, 0, 0);
 	}
@@ -382,9 +377,9 @@ public:
 	}
 
 
-	void SetEditBoxItem(char *s)
+	void SetEditBoxItem(char* text)
 	{
-		SetCXStr(&APW_EditBox->InputText, s);
+		SetCXStr(&APW_EditBox->InputText, text);
 	}
 
 
@@ -488,8 +483,8 @@ public:
 
 			if (StatusState == STATUS_ON && FollowState == FOLLOW_RECORDING) // Recording a path
 			{
-				MQRecordCommand(NULL, "save");
-				MQPlayCommand(NULL, "show");
+				MQRecordCommand(nullptr, "save");
+				MQPlayCommand(nullptr, "show");
 				UpdateUI();
 				return 0;
 			}
@@ -508,8 +503,8 @@ public:
 					(APW_SlowChecked->Checked ? " Slow" : " Fast"),
 					(APW_EvalChecked->Checked ? " Eval" : " NoEval"),
 					(APW_ZoneChecked->Checked ? " Zone" : ""));
-				MQPlayCommand(NULL, "off");
-				MQPlayCommand(NULL, cmd);
+				MQPlayCommand(nullptr, "off");
+				MQPlayCommand(nullptr, cmd);
 				WriteChatf("GUI cmd = [%s]", cmd);
 			}
 			UpdateUI();
@@ -517,7 +512,7 @@ public:
 		}
 
 		if (pWnd == (CXWnd*)APW_CancelButton) {
-			MQPlayCommand(NULL, "off");
+			MQPlayCommand(nullptr, "off");
 			UpdateUI();
 			return 0;
 		}
@@ -531,11 +526,11 @@ public:
 			{
 				SetCXStr(&APW_EditBox->InputText, "");
 				if (StatusState == STATUS_OFF)
-					MQRecordCommand(NULL, szTemp);
+					MQRecordCommand(nullptr, szTemp);
 				else if (FollowState == FOLLOW_RECORDING) // Recording a path
 				{
 					sprintf_s(cmd, "checkpoint %s", szTemp);
-					MQRecordCommand(NULL, cmd);
+					MQRecordCommand(nullptr, cmd);
 				}
 			}
 			UpdateUI();
@@ -560,7 +555,7 @@ public:
 
 CMyWnd *MyWnd = 0;
 
-void CreateMyWindow(void)
+void CreateMyWindow()
 {
 	DebugSpewAlways("MQ2MyWnd::CreateWindow()");
 	if (MyWnd) return;
@@ -576,7 +571,7 @@ void CreateMyWindow(void)
 	}
 }
 
-void DestroyMyWindow(void)
+void DestroyMyWindow()
 {
 	DebugSpewAlways("MQ2MyWnd::DestroyWindow()");
 	if (MyWnd)
@@ -587,17 +582,17 @@ void DestroyMyWindow(void)
 	}
 }
 
-PLUGIN_API VOID OnCleanUI(VOID) {
+PLUGIN_API VOID OnCleanUI() {
 	DestroyMyWindow(); 
 }
-PLUGIN_API VOID OnReloadUI(VOID) {
+
+PLUGIN_API VOID OnReloadUI() {
 	if (gGameState == GAMESTATE_INGAME && pCharSpawn)
 		CreateMyWindow();
 }
 
 void ReadWindowINI(PCSIDLWND pWindow)
 {
-	CHAR Buffer[MAX_STRING] = { 0 };
 	pWindow->SetLocation({ (LONG)GetPrivateProfileInt("Settings", "ChatLeft", 164, INIFileName),
 		(LONG)GetPrivateProfileInt("Settings", "ChatTop", 357, INIFileName),
 		(LONG)GetPrivateProfileInt("Settings", "ChatRight", 375, INIFileName),
@@ -617,6 +612,7 @@ void ReadWindowINI(PCSIDLWND pWindow)
 	col.B = GetPrivateProfileInt("Settings", "BGTint.blue", 0, INIFileName);
 	pWindow->SetBGColor(col.ARGB);
 }
+
 template <unsigned int _Size>LPSTR SafeItoa(int _Value,char(&_Buffer)[_Size], int _Radix)
 {
 	errno_t err = _itoa_s(_Value, _Buffer, _Radix);
@@ -625,6 +621,7 @@ template <unsigned int _Size>LPSTR SafeItoa(int _Value,char(&_Buffer)[_Size], in
 	}
 	return "";
 }
+
 void WriteWindowINI(PCSIDLWND pWindow)
 {
 	CHAR szTemp[MAX_STRING] = { 0 };
@@ -657,11 +654,11 @@ void WriteWindowINI(PCSIDLWND pWindow)
 	WritePrivateProfileString("Settings", "BGTint.blue", SafeItoa(col.B, szTemp, 10), INIFileName);
 }
 
-void DoPlayWindow(void)
+void DoPlayWindow()
 {
 	int i;
 	char *p, *q;
-	CHAR INIFileNameTemp[400];
+	char INIFileNameTemp[MAX_PATH];
 
 	CreateMyWindow();
 	if (MyWnd) {
@@ -669,10 +666,10 @@ void DoPlayWindow(void)
 
 		sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
 
-		GetPrivateProfileString(NULL, NULL, NULL, MyWnd->szList, MAX_STRING, INIFileNameTemp);
+		GetPrivateProfileString(nullptr, nullptr, nullptr, MyWnd->szList, MAX_STRING, INIFileNameTemp);
 		i = 0;
 		p = q = MyWnd->szList;
-		while (*q != NULL && i<99)
+		while (*q != 0 && i<99)
 		{
 			if (*p == 0)
 			{
@@ -686,12 +683,12 @@ void DoPlayWindow(void)
 	}
 }
 
-void ReadOtherSettings(void)
+void ReadOtherSettings()
 {
 	GetPrivateProfileString("Settings", "CustomSearch", "0", custSearch, 64, INIFileName);
 }
 
-void WriteOtherSettings(void)
+void WriteOtherSettings()
 {
 	WritePrivateProfileString("Settings", "CustomSearch", custSearch, INIFileName);
 }
@@ -731,14 +728,14 @@ void MapClear() {
 	}
 }
 
-void ListPaths(void)
+void ListPaths()
 {
 	CHAR INIFileNameTemp[MAX_STRING] = { 0 };
 	CHAR szTemp[MAX_STRING] = { 0 };
 	CHAR szList[MAX_STRING] = { 0 };
 
 	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
-	GetPrivateProfileString(NULL, NULL, NULL, szList, MAX_STRING, INIFileNameTemp);
+	GetPrivateProfileString(nullptr, nullptr, nullptr, szList, MAX_STRING, INIFileNameTemp);
 	sprintf_s(szTemp, "[MQ2AdvPath] Paths available in %s", GetShortZone(GetCharInfo()->zoneId));
 	WriteChatColor(szTemp, CONCOLOR_LIGHTBLUE);
 
@@ -759,7 +756,7 @@ void ListPaths(void)
 
 int GetCustPaths(int kFlag)
 {
-	if (custSearch[0] == 0 || custSearch[0] == '\0')
+	if (custSearch[0] == '\0')
 		return 0;
 
 	CHAR INIFileNameTemp[MAX_STRING] = { 0 };
@@ -767,7 +764,7 @@ int GetCustPaths(int kFlag)
 	CHAR szList[MAX_STRING] = { 0 };
 
 	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
-	GetPrivateProfileString(NULL, NULL, NULL, szList, MAX_STRING, INIFileNameTemp);
+	GetPrivateProfileString(nullptr, nullptr, nullptr, szList, MAX_STRING, INIFileNameTemp);
 
 	char* p = (char*)szList;
 	size_t length = 0;
@@ -796,7 +793,7 @@ int GetCustPaths(int kFlag)
 //	Ingame commands:
 //	/afollow    # Follow's your Target
 */
-VOID MQFollowCommand(PSPAWNINFO pChar, PCHAR szLine) {
+void MQFollowCommand(PSPAWNINFO pChar, PCHAR szLine) {
 	DebugSpewAlways("MQ2AdvPath::MQFollowCommand()");
 	if (!gbInZone || !GetCharInfo() || !GetCharInfo()->pSpawn || !AdvPathStatus) return;
 	bool doFollow = false;
@@ -879,7 +876,7 @@ VOID MQFollowCommand(PSPAWNINFO pChar, PCHAR szLine) {
 	}
 }
 
-VOID MQPlayCommand(PSPAWNINFO pChar, PCHAR szLine) {
+void MQPlayCommand(PSPAWNINFO pChar, PCHAR szLine) {
 	if (!gbInZone || !GetCharInfo() || !GetCharInfo()->pSpawn || !AdvPathStatus)
 		return;
 	DebugSpewAlways("MQ2AdvPath::MQPlayCommand()");
@@ -911,9 +908,9 @@ VOID MQPlayCommand(PSPAWNINFO pChar, PCHAR szLine) {
 			if (Buffer[0] != 0)
 				v = (float)atof(Buffer);
 			doPause = true;
-			if (v) {
+			if (v != 0) {
 				iParm++;
-				unPauseTick = GetTickCount() + (long)v;
+				unPauseTick = GetTickCount64() + (long)v;
 			}
 			else {
 				unPauseTick = 0;
@@ -929,7 +926,7 @@ VOID MQPlayCommand(PSPAWNINFO pChar, PCHAR szLine) {
 				t1 = Buffer[7] - '0';
 			char v1 = '\0';
 			GetArg(Buffer, szLine, iParm + 1);
-			if (Buffer[0] != '\0' && Buffer[0] != 0)
+			if (Buffer[0] != '\0')
 				v1 = Buffer[0];
 			if (v1 != '\0' && (int)strlen(Buffer) == 1)
 				iParm++;
@@ -1018,9 +1015,9 @@ VOID MQPlayCommand(PSPAWNINFO pChar, PCHAR szLine) {
 	}
 }
 
-void NextPath(void)
+void NextPath()
 {
-	string Buffer;
+	std::string Buffer;
 	if (PathList.empty()) return;
 	Buffer = PathList.front();
 	PathList.pop();
@@ -1043,8 +1040,8 @@ void NextPath(void)
 		}
 	}
 	if (PlaySmart) {
-		list<Position>::iterator CurList = FollowPath.begin();
-		list<Position>::iterator EndList = FollowPath.end();
+		auto CurList = FollowPath.begin();
+		auto EndList = FollowPath.end();
 		int i = 1;
 		float D, MinD = 100000;
 		while (CurList != EndList) {
@@ -1063,9 +1060,7 @@ void NextPath(void)
 		PlayWaypoint = FollowPath.size();
 }
 
-
-
-VOID MQRecordCommand(PSPAWNINFO pChar, PCHAR szLine) {
+void MQRecordCommand(PSPAWNINFO pChar, PCHAR szLine) {
 	if (!gbInZone || !GetCharInfo() || !GetCharInfo()->pSpawn || !AdvPathStatus) return;
 	DebugSpewAlways("MQ2AdvPath::MQPlayCommand()");
 
@@ -1086,7 +1081,7 @@ VOID MQRecordCommand(PSPAWNINFO pChar, PCHAR szLine) {
 			MaxChkPointDist = 0;
 
 			if (Buffer[0] == 0) {
-				if (SavePathName[0] != NULL && SavePathZone[0] != NULL)
+				if (SavePathName[0] != 0 && SavePathZone[0] != 0)
 					SavePath(SavePathName, SavePathZone);
 				return;
 			}
@@ -1105,10 +1100,10 @@ VOID MQRecordCommand(PSPAWNINFO pChar, PCHAR szLine) {
 	else if (!_strnicmp(Buffer, "checkpoint", 10)) {
 		GetArg(Buffer, szLine, ++iParm);
 		if (Buffer[0] == 0) return;
-		if (FollowPath.size() && FollowState == FOLLOW_RECORDING) {
+		if (!FollowPath.empty() && FollowState == FOLLOW_RECORDING) {
 			int i = 1;
-			list<Position>::iterator CurList = FollowPath.begin();
-			list<Position>::iterator EndList = FollowPath.end();
+			auto CurList = FollowPath.begin();
+			auto EndList = FollowPath.end();
 			while (CurList != EndList) {
 				if (FollowPath.size() == i) {
 					strcpy_s(CurList->CheckPoint, Buffer);
@@ -1123,8 +1118,8 @@ VOID MQRecordCommand(PSPAWNINFO pChar, PCHAR szLine) {
 		ClearAll();
 		//		GetArg(Buffer,szLine,++iParm);
 		if (Buffer[0] == 0) {
-			SavePathZone[0] = NULL;
-			SavePathName[0] = NULL;
+			SavePathZone[0] = 0;
+			SavePathName[0] = 0;
 		}
 		else {
 			strcpy_s(SavePathName, Buffer);
@@ -1141,7 +1136,6 @@ VOID MQRecordCommand(PSPAWNINFO pChar, PCHAR szLine) {
 		MeMonitorZ = GetCharInfo()->pSpawn->Z; // MeMonitorZ monitor your self
 	}
 }
-
 
 //Movement Related Functions
 void ReleaseKeys() {
@@ -1258,7 +1252,7 @@ void LookAt(FLOAT X, FLOAT Y, FLOAT Z) {
 	}
 }
 
-VOID ClearAll() {
+void ClearAll() {
 	if (MonitorID || FollowPath.size()) WriteChatf("[MQ2AdvPath] Stopped");
 	FollowPath.clear();
 	unPauseTick = NextClickDoor = PauseDoor = FollowIdle = MonitorID = 0;
@@ -1269,15 +1263,15 @@ VOID ClearAll() {
 	StatusState = STATUS_OFF;		// Active?
 	PlayOne = MonitorWarp = PlayLoop = false;
 
-	SavePathZone[0] = NULL;
-	SavePathName[0] = NULL;
+	SavePathZone[0] = 0;
+	SavePathName[0] = 0;
 
-	if(!SaveMapPath) 
+	if(!SaveMapPath)
 		MapClear();
 }
 
-VOID ClearOne(list<Position>::iterator &CurList) {
-	list<Position>::iterator PosList;
+void ClearOne(std::list<Position>::iterator &CurList) {
+	std::list<Position>::iterator PosList;
 	PosList = CurList;
 	CurList->X = 0;
 	CurList->Y = 0;
@@ -1286,7 +1280,7 @@ VOID ClearOne(list<Position>::iterator &CurList) {
 	FollowPath.erase(PosList);
 }
 
-VOID AddWaypoint(long SpawnID, bool Warping) {
+void AddWaypoint(long SpawnID, bool Warping) {
 	if (PSPAWNINFO pSpawn = (PSPAWNINFO)GetSpawnByID(SpawnID)) {
 		Position MonitorPosition;
 
@@ -1306,7 +1300,7 @@ VOID AddWaypoint(long SpawnID, bool Warping) {
 PDOOR ClosestDoor() {
 	PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
 	FLOAT Distance = 100000.00;
-	PDOOR pDoor = NULL;
+	PDOOR pDoor = nullptr;
 	for (DWORD Count = 0; Count<pDoorTable->NumEntries; Count++) {
 		if (Distance > GetDistance3D(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z, pDoorTable->pDoor[Count]->DefaultX, pDoorTable->pDoor[Count]->DefaultY, pDoorTable->pDoor[Count]->DefaultZ)) {
 			Distance = GetDistance3D(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z, pDoorTable->pDoor[Count]->DefaultX, pDoorTable->pDoor[Count]->DefaultY, pDoorTable->pDoor[Count]->DefaultZ);
@@ -1323,7 +1317,7 @@ bool IsOpenDoor(PDOOR pDoor) {
 	return false;
 }
 
-VOID OpenDoor(bool force) {
+void OpenDoor(bool force) {
 	if (!AutoOpenDoor)
 		return;
 	if (force) {
@@ -1332,7 +1326,7 @@ VOID OpenDoor(bool force) {
 	else if (PDOOR pDoor = (PDOOR)ClosestDoor()) {
 		//DoCommand(GetCharInfo()->pSpawn,"/doortarget id ");
 		if (GetDistance3D(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z, pDoor->DefaultX, pDoor->DefaultY, pDoor->DefaultZ) <  DISTANCE_OPEN_DOOR_CLOSE) {
-			if (InFront(pDoor->X, pDoor->Y, ANGEL_OPEN_DOOR_CLOSE, false) && !IsOpenDoor(pDoor) && NextClickDoor < (long)clock()) {
+			if (InFront(pDoor->X, pDoor->Y, ANGLE_OPEN_DOOR_CLOSE, false) && !IsOpenDoor(pDoor) && NextClickDoor < (long)clock()) {
 				CHAR szTemp[MAX_STRING] = { 0 };
 				sprintf_s(szTemp, "id %d", pDoor->ID);
 				DoorTarget(GetCharInfo()->pSpawn, szTemp);
@@ -1345,7 +1339,7 @@ VOID OpenDoor(bool force) {
 			}
 		}
 		else if (GetDistance3D(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z, pDoor->DefaultX, pDoor->DefaultY, pDoor->DefaultZ) <  DISTANCE_OPEN_DOOR_LONG) {
-			if (InFront(pDoor->X, pDoor->Y, ANGEL_OPEN_DOOR_LONG, false) && !IsOpenDoor(pDoor) && NextClickDoor < (long)clock()) {
+			if (InFront(pDoor->X, pDoor->Y, ANGLE_OPEN_DOOR_LONG, false) && !IsOpenDoor(pDoor) && NextClickDoor < (long)clock()) {
 				CHAR szTemp[MAX_STRING] = { 0 };
 				sprintf_s(szTemp, "id %d", pDoor->ID);
 				DoorTarget(GetCharInfo()->pSpawn, szTemp);
@@ -1356,8 +1350,8 @@ VOID OpenDoor(bool force) {
 	}
 }
 
-bool InFront(float X, float Y, float Angel, bool Reverse) {
-	FLOAT Angle = (FLOAT)((atan2f(X - GetCharInfo()->pSpawn->X, Y - GetCharInfo()->pSpawn->Y) * 180.0f / PI));
+bool InFront(float X, float Y, float AngleIn, bool Reverse) {
+	float Angle = ((atan2f(X - GetCharInfo()->pSpawn->X, Y - GetCharInfo()->pSpawn->Y) * 180.0f / (float)PI));
 	if (Angle<0)	Angle += 360;
 	Angle = Angle*1.42f;
 
@@ -1373,13 +1367,13 @@ bool InFront(float X, float Y, float Angel, bool Reverse) {
 	bool Low = false;
 	bool High = false;
 
-	FLOAT Angle1 = GetCharInfo()->pSpawn->Heading - Angel;
+	float Angle1 = GetCharInfo()->pSpawn->Heading - AngleIn;
 	if (Angle1<0) {
 		Low = true;
 		Angle1 += 512.0f;
 	}
 
-	FLOAT Angle2 = GetCharInfo()->pSpawn->Heading + Angel;
+	float Angle2 = GetCharInfo()->pSpawn->Heading + AngleIn;
 	if (Angle2>512.0f) {
 		High = true;
 		Angle2 -= 512.0f;
@@ -1401,22 +1395,21 @@ bool InFront(float X, float Y, float Angel, bool Reverse) {
 	return false;
 }
 
-VOID SavePath(PCHAR PathName, PCHAR PathZone) {
+void SavePath(const char* PathName, const char* PathZone) {
 	WriteChatf("[MQ2AdvPath] Saveing Path: %s Zone: %s", PathName, PathZone);
 	CHAR INIFileNameTemp[400];
 	CHAR szTemp[MAX_STRING] = { 0 };
 	CHAR szTemp2[MAX_STRING] = { 0 };
 
 	unsigned long thisWaypoint = 0;
-	unsigned long DeleteWaypoint = 0;
 	long CurrentDist = 0;
 	FLOAT lastHeading = 0;
 	FLOAT LastX = 0;
 	FLOAT LastY = 0;
 	FLOAT LastZ = 0;
 
-	list<Position>::iterator CurList = FollowPath.begin();
-	list<Position>::iterator EndList = FollowPath.end();
+	auto CurList = FollowPath.begin();
+	auto EndList = FollowPath.end();
 
 	if (EndList != CurList)
 		EndList--;
@@ -1466,10 +1459,10 @@ VOID SavePath(PCHAR PathName, PCHAR PathZone) {
 
 	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, PathZone);
 	if (FollowPath.size()) {
-		WritePrivateProfileString(PathName, NULL, NULL, INIFileNameTemp);
+		WritePrivateProfileString(PathName, nullptr, nullptr, INIFileNameTemp);
 		int i = 1;
-		list<Position>::iterator CurList = FollowPath.begin();
-		list<Position>::iterator EndList = FollowPath.end();
+		CurList = FollowPath.begin();
+		EndList = FollowPath.end();
 		while (CurList != EndList) {
 			sprintf_s(szTemp2, "%d", i);
 			sprintf_s(szTemp, "%.2f %.2f %.2f %s", CurList->Y, CurList->X, CurList->Z, CurList->CheckPoint);
@@ -1481,7 +1474,7 @@ VOID SavePath(PCHAR PathName, PCHAR PathZone) {
 	ClearAll();
 }
 
-VOID LoadPath(PCHAR PathName) {
+void LoadPath(const char* PathName) {
 	CHAR INIFileNameTemp[MAX_STRING] = { 0 };
 	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
 
@@ -1490,12 +1483,11 @@ VOID LoadPath(PCHAR PathName) {
 	int i = 1;
 
 	char szTemp[MAX_STRING] = { 0 };
-	char szTemp3[MAX_STRING] = { 0 };
 	do {
 		char szTemp2[MAX_STRING] = { 0 };
 		char szTemp3[MAX_STRING] = { 0 };
 		sprintf_s(szTemp, "%d", i);
-		GetPrivateProfileString(PathName, szTemp, NULL, szTemp2, MAX_STRING, INIFileNameTemp);
+		GetPrivateProfileString(PathName, szTemp, nullptr, szTemp2, MAX_STRING, INIFileNameTemp);
 		if (szTemp2[0] == 0) break;
 		Position TempPosition;
 
@@ -1521,7 +1513,7 @@ VOID LoadPath(PCHAR PathName) {
 		}
 		i++;
 	} while (true);
-	if (MyWnd && FollowPath.size()) {
+	if (MyWnd && !FollowPath.empty()) {
 		for (i = 0;; i++) {
 			MyWnd->APW_PathList->SetCurSel(i);
 			MyWnd->GetPathListItem(szTemp, MAX_STRING);
@@ -1532,11 +1524,11 @@ VOID LoadPath(PCHAR PathName) {
 	}
 }
 
-VOID FollowSpawn() {
+void FollowSpawn() {
 	if (FollowPath.size()) {
 		if (GetDistance3D(MeMonitorX, MeMonitorY, MeMonitorZ, GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z) > 50) {
-			list<Position>::iterator CurList = FollowPath.begin();
-			list<Position>::iterator EndList = FollowPath.end();
+			auto CurList = FollowPath.begin();
+			auto EndList = FollowPath.end();
 			do {
 				if (CurList == EndList) break;
 				if (CurList->Warping) break;
@@ -1546,8 +1538,8 @@ VOID FollowSpawn() {
 		}
 		if (!FollowPath.size()) return;
 
-		list<Position>::iterator CurList = FollowPath.begin();
-		list<Position>::iterator EndList = FollowPath.end();
+		auto CurList = FollowPath.begin();
+		auto EndList = FollowPath.end();
 
 		bool run = false;
 
@@ -1602,10 +1594,13 @@ VOID FollowSpawn() {
 	}
 }
 
-VOID ReplaceWaypointWith(char *s)
+void ReplaceWaypointWith(const char* s)
 {
-	list<Position>::iterator CurList = FollowPath.begin();
-	list<Position>::iterator EndList = FollowPath.end();
+	char mutableArg[MAX_STRING] = { 0 };
+	strcpy_s(mutableArg, s);
+
+	auto CurList = FollowPath.begin();
+	auto EndList = FollowPath.end();
 
 	int i = PlayWaypoint;
 	while (CurList != EndList && i>0)
@@ -1617,27 +1612,26 @@ VOID ReplaceWaypointWith(char *s)
 	{
 		char szTemp3[MAX_STRING];
 
-		GetArg(szTemp3, s, 1);		CurList->Y = (FLOAT)atof(szTemp3);
-		GetArg(szTemp3, s, 2);		CurList->X = (FLOAT)atof(szTemp3);
-		GetArg(szTemp3, s, 3);		CurList->Z = (FLOAT)atof(szTemp3);
+		GetArg(szTemp3, mutableArg, 1);		CurList->Y = (FLOAT)atof(szTemp3);
+		GetArg(szTemp3, mutableArg, 2);		CurList->X = (FLOAT)atof(szTemp3);
+		GetArg(szTemp3, mutableArg, 3);		CurList->Z = (FLOAT)atof(szTemp3);
 
-		strcpy_s(CurList->CheckPoint, GetNextArg(s, 3));
+		strcpy_s(CurList->CheckPoint, GetNextArg(mutableArg, 3));
 	}
 
 }
 
-VOID ResetPathEval(void)
+void ResetPathEval()
 {
-	list<Position>::iterator CurList = FollowPath.begin();
-	list<Position>::iterator EndList = FollowPath.end();
+	auto CurList = FollowPath.begin();
+	auto EndList = FollowPath.end();
 	while (CurList != EndList) {
 		CurList->Eval = 1;
 		CurList++;
 	}
 }
 
-
-VOID EvalWaypoint(list<Position>::iterator &CurList)
+void EvalWaypoint(std::list<Position>::iterator &CurList)
 {
 	//WriteChatf("Checkpoint [%s]",CurList->CheckPoint);
 	if ((PlayEval && (CurList->Eval || IFleeing)) && CurList->CheckPoint[0] == '/')
@@ -1661,7 +1655,7 @@ VOID EvalWaypoint(list<Position>::iterator &CurList)
 	}
 }
 
-VOID NextWaypoint()
+void NextWaypoint()
 {
 	if (PlayOne)
 	{
@@ -1686,7 +1680,7 @@ VOID NextWaypoint()
 		{
 			ClearAll();
 			if (PlayZone)
-				PlayZoneTick = GetTickCount() + ZONE_TIME * PlayZone;
+				PlayZoneTick = GetTickCount64() + ZONE_TIME;
 			else
 				NextPath();
 			return;
@@ -1706,13 +1700,13 @@ VOID NextWaypoint()
 }
 
 
-VOID FollowWaypoints() {
+void FollowWaypoints() {
 	static WORD tock;
 	float  d;
 	if (!FollowPath.size()) return;
 
-	list<Position>::iterator CurList = FollowPath.begin();
-	list<Position>::iterator EndList = FollowPath.end();
+	auto CurList = FollowPath.begin();
+	auto EndList = FollowPath.end();
 
 	long WaypointIndex = 1;
 	do {
@@ -1751,11 +1745,10 @@ VOID FollowWaypoints() {
 	} while (true);
 }
 
-VOID ClearLag() {
+void ClearLag() {
 	if (FollowPath.size()) {
-		list<Position>::iterator CurList = FollowPath.begin();
-		list<Position>::iterator LastList;
-		list<Position>::iterator EndList = FollowPath.end();
+		auto CurList = FollowPath.begin();
+		auto EndList = FollowPath.end();
 
 		if (CurList != EndList) {
 			if (CurList->Warping) return;
@@ -1780,7 +1773,7 @@ VOID ClearLag() {
 	}
 }
 
-VOID RecordingWaypoints() {
+void RecordingWaypoints() {
 	if (MonitorID) {
 		if (PSPAWNINFO pSpawn = (PSPAWNINFO)GetSpawnByID(MonitorID)) {
 			if (GetDistance3D(MonitorX, MonitorY, MonitorZ, pSpawn->X, pSpawn->Y, pSpawn->Z) > 100) {
@@ -1792,18 +1785,17 @@ VOID RecordingWaypoints() {
 	}
 }
 
-void FillInPath(char *PathName, list<Position>&thepath, std::map<std::string, std::list<Position>>&themap)
+void FillInPath(char *PathName, std::list<Position>&thepath, std::map<std::string, std::list<Position>>&themap)
 {
 	CHAR INIFileNameTemp[MAX_STRING] = { 0 };
 	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
 	char szTemp[MAX_STRING] = { 0 };
-	char szTemp3[MAX_STRING] = { 0 };
 	int i = 1;
 	do {
 		char szTemp2[MAX_STRING] = { 0 };
 		char szTemp3[MAX_STRING] = { 0 };
 		sprintf_s(szTemp, "%d", i);
-		GetPrivateProfileString(PathName, szTemp, NULL, szTemp2, MAX_STRING, INIFileNameTemp);
+		GetPrivateProfileString(PathName, szTemp, nullptr, szTemp2, MAX_STRING, INIFileNameTemp);
 		if (szTemp2[0] == 0) break;
 		Position TempPosition;
 
@@ -1826,9 +1818,10 @@ void FillInPath(char *PathName, list<Position>&thepath, std::map<std::string, st
 	} while (true);
 	themap[PathName] = thepath;
 }
+
 std::string GetPathWeAreOn(char *PathName)
 {
-	list<Position>thepath;
+	std::list<Position>thepath;
 	std::map<std::string, std::list<Position>>themap;
 	CHAR INIFileNameTemp[MAX_STRING] = { 0 };
 	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
@@ -1839,12 +1832,12 @@ std::string GetPathWeAreOn(char *PathName)
 		bDoAll = true;
 	}
 
-	if ((fHandle = CreateFile(INIFileNameTemp, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL)) != INVALID_HANDLE_VALUE) {
+	if ((fHandle = CreateFile(INIFileNameTemp, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, nullptr)) != INVALID_HANDLE_VALUE) {
 		DWORD hsize = 0;
 		if (DWORD fsize = GetFileSize(fHandle, &hsize)) {
 			if (char *szBuffer = (char *)LocalAlloc(LPTR, fsize)) {
 				char *szOrgBuff = szBuffer;
-				if (DWORD thesize = GetPrivateProfileString(NULL, NULL, NULL, szBuffer, fsize, INIFileNameTemp)) {
+				if (DWORD thesize = GetPrivateProfileString(nullptr, nullptr, nullptr, szBuffer, fsize, INIFileNameTemp)) {
 					//we got some paths...
 					size_t newsize = 0;
 					CHAR szTemp[MAX_STRING] = { 0 };
@@ -1877,7 +1870,7 @@ std::string GetPathWeAreOn(char *PathName)
 		{
 			FLOAT Shortestdist;
 			std::string Name;
-		} ShortDist;
+		} ShortDist{ 0, "" };
 		ShortDist.Shortestdist = 1000000.0;
 		PSPAWNINFO pLPlayer = (PSPAWNINFO)pLocalPlayer;
 		for (std::map<std::string, std::list<Position>>::iterator m = themap.begin(); m != themap.end(); m++) {
@@ -1891,8 +1884,9 @@ std::string GetPathWeAreOn(char *PathName)
 		}
 		return ShortDist.Name;
 	}
-	return NULL;
+	return "";
 }
+
 class MQ2AdvPathType : public MQ2Type {
 private:
 	char Temps[MAX_STRING];
@@ -1974,11 +1968,10 @@ public:
 		TypeMember(FirstWayPoint);
 	}
 	bool MQ2AdvPathType::GETMEMBER() {
-		list<Position>::iterator CurList = FollowPath.begin();
-		list<Position>::iterator EndList = FollowPath.end();
+		auto CurList = FollowPath.begin();
+		auto EndList = FollowPath.end();
 		int i = 1;
 		float TheLength = 0;
-		int flag = 0;
 
 		//WriteChatf("[MQ2AdvPath] AdvPath Member: %s %s",Member,Index);
 
@@ -2052,7 +2045,7 @@ public:
 			return true;
 		case Length:										// Estimated length off the follow path
 			if (FollowPath.size()) {
-				list<Position>::iterator CurList = FollowPath.begin();
+				CurList = FollowPath.begin();
 				TheLength = GetDistance(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, CurList->X, CurList->Y);
 				if (FollowPath.size() > 1)	TheLength = ((FollowPath.size() - 1)*DISTANCE_BETWEN_LOG) + TheLength;
 			}
@@ -2220,14 +2213,14 @@ public:
 		case PathCount:
 		{
 			CHAR INIFileNameTemp[MAX_STRING] = { 0 };
-            sprintf_s(INIFileNameTemp,"%s\\%s\\%s.ini",gszINIPath,"MQ2AdvPath",GetShortZone(GetCharInfo()->zoneId));
-	        //GetPrivateProfileString("","","",Temps,MAX_STRING,INIFileNameTemp);	
+            sprintf_s(INIFileNameTemp, "%s\\%s\\%s.ini", gszINIPath, "MQ2AdvPath", GetShortZone(GetCharInfo()->zoneId));
+	        //GetPrivateProfileString("","","",Temps,MAX_STRING,INIFileNameTemp);
 			DWORD count1 = GetPrivateProfileSectionNames(Temps, MAX_STRING, INIFileNameTemp);
 			if (count1) {
 				int tot1 = 0;
 				char * pch1;
 				pch1 = strchr(Temps,'\0');
-				while (pch1 != NULL && pch1 < Temps+count1)
+				while (pch1 != nullptr && pch1 < Temps+count1)
 				{
 					tot1++;
 					pch1=strchr(pch1+1, '\0');
@@ -2236,7 +2229,7 @@ public:
 				//for(int idx1 = 1; idx1<=count1; idx1++)
 				//{
 				//	  if(Temps[idx1]=='\0') tot1++;
-				//	  
+				//
 				//}
 				Dest.DWord=tot1;
 			} else {
@@ -2255,9 +2248,9 @@ public:
 					return true;
                 }
 				CHAR INIFileNameTemp[MAX_STRING] = { 0 };
-                sprintf_s(INIFileNameTemp,"%s\\MQ2AdvPath\\%s.ini",gszINIPath,GetShortZone(GetCharInfo()->zoneId));
-	            GetPrivateProfileString(Index,"1","",Temps,MAX_STRING,INIFileNameTemp);	
-				if(Temps && Temps[0]=='\0') { 
+                sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
+	            GetPrivateProfileString(Index,"1","",Temps,MAX_STRING,INIFileNameTemp);
+				if(Temps && Temps[0]=='\0') {
 				    strcpy_s(Temps,"NULL");
 				}
 				Dest.Ptr=Temps;
@@ -2293,7 +2286,7 @@ BOOL dataAdvPath(PCHAR szName, MQ2TYPEVAR &Dest) {
 	return true;
 }
 
-VOID ShowHelp(int helpFlag) {
+void ShowHelp(int helpFlag) {
 	WriteChatColor("========= Advance Pathing Help =========", CONCOLOR_YELLOW);
 	//WriteChatf("");
 	switch (helpFlag)
@@ -2331,7 +2324,7 @@ VOID ShowHelp(int helpFlag) {
 	WriteChatColor("========================================", CONCOLOR_YELLOW);
 }
 // Set Active Status true or false.
-VOID MQAdvPathCommand(PSPAWNINFO pChar, PCHAR szLine) {
+void MQAdvPathCommand(PSPAWNINFO pChar, PCHAR szLine) {
 	if (!gbInZone || !GetCharInfo() || !GetCharInfo()->pSpawn) return;
 	DebugSpewAlways("MQ2AdvPath::MQAdvPathCommand()");
 	long iParm = 0;
@@ -2399,13 +2392,14 @@ PLUGIN_API VOID InitializePlugin(VOID) {
 	pAdvPathType = new MQ2AdvPathType;
 	AddMQ2Data("AdvPath", dataAdvPath);
 	sprintf_s(Buffer, "%s\\MQ2AdvPath", gszINIPath);
-	_mkdir(Buffer);
+	if (_mkdir(Buffer) != 0)
+		WriteChatf("[MQ2AdvPath] Failed to create MQ2AdvPath directory");
 	AddXMLFile("MQUI_AdvPathWnd.xml");
 	ReadOtherSettings();
 }
 
 // Called once, when the plugin is to shutdown
-PLUGIN_API VOID ShutdownPlugin(VOID) {
+PLUGIN_API VOID ShutdownPlugin() {
 	DebugSpewAlways("Shutting down MQ2AdvPath");
 
 	DestroyMyWindow();
@@ -2420,7 +2414,7 @@ PLUGIN_API VOID ShutdownPlugin(VOID) {
 }
 
 // This is called every time MQ pulses
-PLUGIN_API VOID OnPulse(VOID) {
+PLUGIN_API VOID OnPulse() {
 	if (!gbInZone || !GetCharInfo() || !GetCharInfo()->pSpawn || !AdvPathStatus) return;
 
 	thisClock = (unsigned long)clock();
@@ -2431,13 +2425,13 @@ PLUGIN_API VOID OnPulse(VOID) {
 	if (FollowState == FOLLOW_FOLLOWING && StatusState == STATUS_ON) FollowSpawn();
 	else if (FollowState == FOLLOW_PLAYING && StatusState == STATUS_ON) FollowWaypoints();
 
-	if (PlayZoneTick && PlayZoneTick < (long)GetTickCount() && PlayZone)
+	if (PlayZoneTick && PlayZoneTick < GetTickCount64() && PlayZone)
 	{
 		NextPath();
 		PlayZoneTick = 0;
 	}
 
-	if (unPauseTick && (long)GetTickCount() > unPauseTick) {
+	if (unPauseTick && GetTickCount64() > unPauseTick) {
 		unPauseTick = 0;
 		if (FollowState == FOLLOW_PLAYING && StatusState == STATUS_PAUSED)
 		{
@@ -2452,8 +2446,8 @@ PLUGIN_API VOID OnPulse(VOID) {
 	MeMonitorZ = GetCharInfo()->pSpawn->Z; // MeMonitorZ monitor your self
 
 	if (FollowPath.size()) {
-		list<Position>::iterator CurList = FollowPath.begin();
-		list<Position>::iterator EndList = FollowPath.end();
+		auto CurList = FollowPath.begin();
+		auto EndList = FollowPath.end();
 
 		Position LastList;			// FollowPath
 
@@ -2500,10 +2494,9 @@ PLUGIN_API VOID OnPulse(VOID) {
 	}
 }
 
-
-PLUGIN_API VOID OnEndZone(VOID) {
+PLUGIN_API VOID OnEndZone() {
 	DebugSpewAlways("MQ2AdvPath::OnZoned()");
-	if (FollowState == FOLLOW_RECORDING && StatusState && SavePathName[0] != NULL && SavePathZone[0] != NULL)
+	if (FollowState == FOLLOW_RECORDING && StatusState && SavePathName[0] != 0 && SavePathZone[0] != 0)
 		SavePath(SavePathName, SavePathZone);
 	ClearAll();
 	if (MyWnd && MyWnd->IsVisible()) {
@@ -2511,7 +2504,6 @@ PLUGIN_API VOID OnEndZone(VOID) {
 		DoPlayWindow();
 	}
 }
-
 
 PLUGIN_API VOID OnRemoveSpawn(PSPAWNINFO pSpawn) {
 	//DebugSpewAlways("MQ2AdvPath::OnRemoveSpawn(%s)", pSpawn->Name);
