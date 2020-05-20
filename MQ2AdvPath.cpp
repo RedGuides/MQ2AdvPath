@@ -2379,7 +2379,7 @@ void MQAdvPathCommand(PSPAWNINFO pChar, PCHAR szLine) {
 }
 
 // Called once, when the plugin is to initialize
-PLUGIN_API VOID InitializePlugin(VOID) {
+PLUGIN_API VOID InitializePlugin() {
 	DebugSpewAlways("Initializing MQ2AdvPath");
 
 	AdvPathStatus = true;
@@ -2392,7 +2392,8 @@ PLUGIN_API VOID InitializePlugin(VOID) {
 	pAdvPathType = new MQ2AdvPathType;
 	AddMQ2Data("AdvPath", dataAdvPath);
 	sprintf_s(Buffer, "%s\\MQ2AdvPath", gszINIPath);
-	if (_mkdir(Buffer) != 0)
+	errno = 0;
+	if (_mkdir(Buffer) != 0 && errno != EEXIST)
 		WriteChatf("[MQ2AdvPath] Failed to create MQ2AdvPath directory");
 	AddXMLFile("MQUI_AdvPathWnd.xml");
 	ReadOtherSettings();
