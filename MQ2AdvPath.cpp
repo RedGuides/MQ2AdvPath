@@ -1952,7 +1952,8 @@ public:
 		TypeMember(PathCount);
 		TypeMember(FirstWayPoint);
 	}
-	bool MQ2AdvPathType::GetMember(MQVarPtr VarPtr, char* Member, char* Index, MQTypeVar& Dest) {
+
+	virtual bool MQ2AdvPathType::GetMember(MQVarPtr VarPtr, const char* Member, char* Index, MQTypeVar& Dest) override {
 		auto CurList = FollowPath.begin();
 		auto EndList = FollowPath.end();
 		int i = 1;
@@ -2259,7 +2260,7 @@ public:
 	bool FromData(MQVarPtr &VarPtr, MQTypeVar &Source) {
 		return false;
 	}
-	bool FromString(MQVarPtr &VarPtr, PCHAR Source) {
+	virtual bool FromString(MQVarPtr &VarPtr, const char* Source) override {
 		return false;
 	}
 	~MQ2AdvPathType() { }
