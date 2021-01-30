@@ -1132,14 +1132,17 @@ void ReleaseKeys() {
 	DoLft(false);
 }
 
-void DoWalk(bool walk) {
-	if (GetGameState() == GAMESTATE_INGAME && pLocalPlayer) {
-		bool state_walking = (*EQADDR_RUNWALKSTATE) ? false : true;
-		float SpeedMultiplier = *((float*)&(((PSPAWNINFO)pLocalPlayer)->SpeedMultiplier));
-		if (SpeedMultiplier < 0) walk = false; // we're snared, dont go into walk mode no matter what
-		if ((walk && !state_walking) || (!walk && state_walking)) {
-			ExecuteCmd(FindMappableCommand("run_walk"), 1, 0);
-			ExecuteCmd(FindMappableCommand("run_walk"), 0, 0);
+void DoWalk(bool walk)
+{
+	if ((GetGameState() == GAMESTATE_INGAME) && pLocalPlayer) {
+		const bool state_walking = !*EQADDR_RUNWALKSTATE;
+		if (pLocalPlayer->SpeedMultiplier < 0)
+		{
+			walk = false; // we're snared, don't go into walk mode no matter what
+		}
+		if (walk != state_walking) {
+			ExecuteCmd(FindMappableCommand("run_walk"), true, nullptr);
+			ExecuteCmd(FindMappableCommand("run_walk"), false, nullptr);
 		}
 	}
 }
