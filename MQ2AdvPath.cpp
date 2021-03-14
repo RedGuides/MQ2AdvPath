@@ -1876,7 +1876,6 @@ std::string GetPathWeAreOn(char *PathName)
 }
 
 class MQ2AdvPathType : public MQ2Type {
-private:
 	char Temps[MAX_STRING];
 public:
 	enum AdvPathMembers {
@@ -2256,17 +2255,10 @@ public:
 		Dest.Ptr = &DataTypeTemp[0];
 		return true;
 	}
-	bool ToString(MQVarPtr VarPtr, PCHAR Destination) {
+	bool ToString(MQVarPtr VarPtr, PCHAR Destination) override {
 		strcpy_s(Destination, MAX_STRING, "TRUE");
 		return true;
 	}
-	bool FromData(MQVarPtr &VarPtr, MQTypeVar &Source) {
-		return false;
-	}
-	virtual bool FromString(MQVarPtr &VarPtr, const char* Source) override {
-		return false;
-	}
-	~MQ2AdvPathType() { }
 };
 
 bool dataAdvPath(const char* szName, MQTypeVar &Dest) {
