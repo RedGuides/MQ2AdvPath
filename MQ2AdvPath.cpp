@@ -269,7 +269,7 @@ public:
 	CButtonWnd   *APW_CancelButton;
 	CButtonWnd   *APW_RecordButton;
 
-	CTextEntryWnd*APW_EditBox;
+	CEditWnd *APW_EditBox;
 
 	CListWnd	 *APW_PathList;
 	CListWnd	 *APW_INIList;
@@ -280,7 +280,7 @@ public:
 		APW_PlayButton = (CButtonWnd*)GetChildItem("APW_PlayButton");
 		APW_CancelButton = (CButtonWnd*)GetChildItem("APW_CancelButton");
 		APW_RecordButton = (CButtonWnd*)GetChildItem("APW_RecordButton");
-		APW_EditBox = (CTextEntryWnd*)GetChildItem("APW_EditBox");
+		APW_EditBox = (CEditWnd*)GetChildItem("APW_EditBox");
 
 		APW_PathList = (CListWnd*)GetChildItem("APW_PathList");
 		APW_INIList = (CListWnd*)GetChildItem("APW_INIList");
@@ -439,7 +439,7 @@ public:
 
 		if (pWnd->GetType() == UI_Button) GetCheckMarks();
 
-		if (pWnd == (CXWnd*)APW_EditBox  && Message == 6) // Pressed ENTER 
+		if (pWnd == (CXWnd*)APW_EditBox  && Message == 6) // Pressed ENTER
 		{
 			CHAR szTemp[MAX_STRING] = { 0 };
 			GetEditBoxItem(szTemp, MAX_STRING);
@@ -583,7 +583,7 @@ void DestroyMyWindow()
 }
 
 PLUGIN_API VOID OnCleanUI() {
-	DestroyMyWindow(); 
+	DestroyMyWindow();
 }
 
 PLUGIN_API VOID OnReloadUI() {
@@ -1712,7 +1712,7 @@ void FollowWaypoints() {
 	do {
 		if (CurList == EndList) break;
 		if (WaypointIndex == PlayWaypoint) {
-			//				if( ( GetForegroundWindow()==EQhWnd && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > DISTANCE_BETWEN_LOG ) || ( GetForegroundWindow()!=EQhWnd && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > (DISTANCE_BETWEN_LOG+10) ) ) 
+			//				if( ( GetForegroundWindow()==EQhWnd && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > DISTANCE_BETWEN_LOG ) || ( GetForegroundWindow()!=EQhWnd && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > (DISTANCE_BETWEN_LOG+10) ) )
 
 			// Allow X,Y,Z = 0 to match current position
 			if (CurList->X == 0 && CurList->Y == 0 && CurList->Z == 0)
