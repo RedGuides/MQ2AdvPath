@@ -433,7 +433,7 @@ public:
 
 		if (pWnd->GetType() == UI_Button) GetCheckMarks();
 
-		if (pWnd == (CXWnd*)APW_EditBox  && Message == 6) // Pressed ENTER 
+		if (pWnd == (CXWnd*)APW_EditBox  && Message == 6) // Pressed ENTER
 		{
 			ReplaceWaypointWith(GetEditBoxItem().c_str());
 			auto temp = GetPathListItem();
@@ -1700,7 +1700,7 @@ void FollowWaypoints() {
 	do {
 		if (CurList == EndList) break;
 		if (WaypointIndex == PlayWaypoint) {
-			//				if( ( GetForegroundWindow()==EQhWnd && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > DISTANCE_BETWEN_LOG ) || ( GetForegroundWindow()!=EQhWnd && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > (DISTANCE_BETWEN_LOG+10) ) ) 
+			//				if( ( GetForegroundWindow()==EQhWnd && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > DISTANCE_BETWEN_LOG ) || ( GetForegroundWindow()!=EQhWnd && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > (DISTANCE_BETWEN_LOG+10) ) )
 
 			// Allow X,Y,Z = 0 to match current position
 			if (CurList->X == 0 && CurList->Y == 0 && CurList->Z == 0)
