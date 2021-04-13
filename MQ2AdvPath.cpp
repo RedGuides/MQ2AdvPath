@@ -383,16 +383,16 @@ public:
 	{
 		if (StatusState == STATUS_ON && FollowState == FOLLOW_RECORDING) // Recording a path
 		{
-			APW_PlayButton->SetWindowTextA("Save");
+			APW_PlayButton->SetWindowText("Save");
 			//SetCXStr(&APW_PlayButton->WindowText, "Save");
-			APW_RecordButton->SetWindowTextA("CheckPoint");
+			APW_RecordButton->SetWindowText("CheckPoint");
 			//SetCXStr(&APW_RecordButton->WindowText, "CheckPoint");
 		}
 		else
 		{
-			APW_PlayButton->SetWindowTextA("Play");
+			APW_PlayButton->SetWindowText("Play");
 			//SetCXStr(&APW_PlayButton->WindowText, "Play");
-			APW_RecordButton->SetWindowTextA("Record");
+			APW_RecordButton->SetWindowText("Record");
 			//SetCXStr(&APW_RecordButton->WindowText, "Record");
 		}
 
