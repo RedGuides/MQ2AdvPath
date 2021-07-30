@@ -2373,6 +2373,7 @@ PLUGIN_API void InitializePlugin() {
 	pAdvPathType = new MQ2AdvPathType;
 	AddMQ2Data("AdvPath", dataAdvPath);
 	sprintf_s(Buffer, "%s\\MQ2AdvPath", gPathConfig);
+	errno = 0;
 	if (_mkdir(Buffer) != 0 && errno != EEXIST)
 		WriteChatf("[MQ2AdvPath] Failed to create MQ2AdvPath directory");
 	AddXMLFile("MQUI_AdvPathWnd.xml");
