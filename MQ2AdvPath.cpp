@@ -61,7 +61,7 @@
 //   /advpath customsearch apath (sets the value of costumsearch = apath)
 //   /advpath save (saves the changes to customsearch to the advpath.ini settings file)
 //
-#include "../MQ2Plugin.h"
+#include <mq/Plugin.h>
 
 #include <direct.h>
 
@@ -211,8 +211,8 @@ long DistanceMod = 0;
 ////
 ///////////////////////////////////////////////////////////////////////////////
 
-void WriteWindowINI(PCSIDLWND pWindow);
-void ReadWindowINI(PCSIDLWND pWindow);
+void WriteWindowINI(CSidlScreenWnd* pWindow);
+void ReadWindowINI(CSidlScreenWnd* pWindow);
 void DestroyMyWindow();
 void CreateMyWindow();
 void DoPlayWindow();
@@ -269,13 +269,13 @@ public:
 	CButtonWnd   *APW_CancelButton;
 	CButtonWnd   *APW_RecordButton;
 
-	CEditWnd *APW_EditBox;
+	CEditWnd     *APW_EditBox;
 
 	CListWnd	 *APW_PathList;
 	CListWnd	 *APW_INIList;
 	char		  szList[MAX_STRING];
 
-	CMyWnd() :CCustomWnd("AdvPathWnd")
+	CMyWnd() : CCustomWnd("AdvPathWnd"), szList{ 0 }
 	{
 		APW_PlayButton = (CButtonWnd*)GetChildItem("APW_PlayButton");
 		APW_CancelButton = (CButtonWnd*)GetChildItem("APW_CancelButton");
@@ -297,38 +297,36 @@ public:
 		APW_StuckChecked = (CCheckBoxWnd*)GetChildItem("APW_StuckButton");
 		APW_BreakPathChecked = (CCheckBoxWnd*)GetChildItem("APW_BreakPathButton");
 		APW_BreakFollowChecked = (CCheckBoxWnd*)GetChildItem("APW_BreakFollowButton");
-
-		SetWndNotification(CMyWnd);
 	}
 
 	void SetCheckMarks(void)
 	{
-		APW_EvalChecked->Checked = iShowEval ? true:false;
-		APW_PauseChecked->Checked = iShowPause ? true:false;
-		APW_LoopChecked->Checked = iShowLoop ? true:false;
-		APW_ReverseChecked->Checked = iShowReverse ? true:false;
-		APW_SlowChecked->Checked = iShowSlow ? true:false;
-		APW_DoorChecked->Checked = iShowDoor ? true:false;
-		APW_SmartChecked->Checked = iShowSmart ? true:false;
-		APW_ZoneChecked->Checked = iShowZone ? true:false;
-		APW_StuckChecked->Checked = iShowStuck ? true:false;
-		APW_BreakPathChecked->Checked = iShowBreakPath ? true:false;
-		APW_BreakFollowChecked->Checked = iShowBreakFollow ? true:false;
+		APW_EvalChecked->bChecked = iShowEval ? true:false;
+		APW_PauseChecked->bChecked = iShowPause ? true:false;
+		APW_LoopChecked->bChecked = iShowLoop ? true:false;
+		APW_ReverseChecked->bChecked = iShowReverse ? true:false;
+		APW_SlowChecked->bChecked = iShowSlow ? true:false;
+		APW_DoorChecked->bChecked = iShowDoor ? true:false;
+		APW_SmartChecked->bChecked = iShowSmart ? true:false;
+		APW_ZoneChecked->bChecked = iShowZone ? true:false;
+		APW_StuckChecked->bChecked = iShowStuck ? true:false;
+		APW_BreakPathChecked->bChecked = iShowBreakPath ? true:false;
+		APW_BreakFollowChecked->bChecked = iShowBreakFollow ? true:false;
 	}
 
 	void GetCheckMarks(void)
 	{
-		iShowEval = APW_EvalChecked->Checked;
-		iShowPause = APW_PauseChecked->Checked;
-		iShowLoop = APW_LoopChecked->Checked;
-		iShowReverse = APW_ReverseChecked->Checked;
-		iShowSlow = APW_SlowChecked->Checked;
-		iShowDoor = APW_DoorChecked->Checked;
-		iShowSmart = APW_SmartChecked->Checked;
-		iShowStuck = APW_StuckChecked->Checked;
-		iShowZone = APW_ZoneChecked->Checked;
-		iShowBreakPath = APW_BreakPathChecked->Checked;
-		iShowBreakFollow = APW_BreakFollowChecked->Checked;
+		iShowEval = APW_EvalChecked->bChecked;
+		iShowPause = APW_PauseChecked->bChecked;
+		iShowLoop = APW_LoopChecked->bChecked;
+		iShowReverse = APW_ReverseChecked->bChecked;
+		iShowSlow = APW_SlowChecked->bChecked;
+		iShowDoor = APW_DoorChecked->bChecked;
+		iShowSmart = APW_SmartChecked->bChecked;
+		iShowStuck = APW_StuckChecked->bChecked;
+		iShowZone = APW_ZoneChecked->bChecked;
+		iShowBreakPath = APW_BreakPathChecked->bChecked;
+		iShowBreakFollow = APW_BreakFollowChecked->bChecked;
 	}
 
 
@@ -345,11 +343,9 @@ public:
 	}
 
 
-	void GetPathListItem(char *s, int m)
+	CXStr GetPathListItem()
 	{
-		CXStr Str;
-		((CListWnd*)APW_PathList)->GetItemText(&Str, APW_PathList->GetCurSel(), 0);
-		GetCXStr(Str.Ptr, s, m);
+		return APW_PathList->GetItemText(APW_PathList->GetCurSel(), 0);
 	}
 
 	void AddINIListItem(const char* s)
@@ -357,11 +353,9 @@ public:
 		APW_INIList->AddString(s, 0xFFFFFFFF, 0, 0);
 	}
 
-	void GetINIListItem(char *s, int m)
+	CXStr GetINIListItem()
 	{
-		CXStr Str;
-		((CListWnd*)APW_INIList)->GetItemText(&Str, APW_INIList->GetCurSel(), 0);
-		GetCXStr(Str.Ptr, s, m);
+		return APW_INIList->GetItemText(APW_INIList->GetCurSel(), 0);
 	}
 
 	void SetINIListItem(char *s, int m)
@@ -371,15 +365,15 @@ public:
 		//((CListWnd*)APW_INIList)->SetItemText(APW_INIList->GetCurSel(),0,&Str);
 	}
 
-	void GetEditBoxItem(char *s, int m)
+	CXStr GetEditBoxItem()
 	{
-		GetCXStr((PCXSTR)APW_EditBox->InputText, s, m);
+		return APW_EditBox->InputText;
 	}
 
 
-	void SetEditBoxItem(char* text)
+	void SetEditBoxItem(const char* text)
 	{
-		SetCXStr(&APW_EditBox->InputText, text);
+		APW_EditBox->InputText = text;
 	}
 
 
@@ -389,16 +383,16 @@ public:
 	{
 		if (StatusState == STATUS_ON && FollowState == FOLLOW_RECORDING) // Recording a path
 		{
-			APW_PlayButton->CSetWindowText("Save");
+			APW_PlayButton->SetWindowText("Save");
 			//SetCXStr(&APW_PlayButton->WindowText, "Save");
-			APW_RecordButton->CSetWindowText("CheckPoint");
+			APW_RecordButton->SetWindowText("CheckPoint");
 			//SetCXStr(&APW_RecordButton->WindowText, "CheckPoint");
 		}
 		else
 		{
-			APW_PlayButton->CSetWindowText("Play");
+			APW_PlayButton->SetWindowText("Play");
 			//SetCXStr(&APW_PlayButton->WindowText, "Play");
-			APW_RecordButton->CSetWindowText("Record");
+			APW_RecordButton->SetWindowText("Record");
 			//SetCXStr(&APW_RecordButton->WindowText, "Record");
 		}
 
@@ -406,12 +400,12 @@ public:
 		{
 			char szTemp[MAX_STRING] = { 0 };
 			sprintf_s(szTemp, "%d=%5.2f %5.2f %5.2f %s ", waypoint, y, x, z, checkpoint);
-			SetCXStr(&APW_EditBox->InputText, szTemp);
+			APW_EditBox->InputText = szTemp;
 			APW_INIList->SetCurSel(waypoint - 1);
 			APW_INIList->EnsureVisible(waypoint - 1);
 		}
 		if (StatusState == STATUS_OFF)
-			SetCXStr(&APW_EditBox->InputText, "");
+			APW_EditBox->InputText.clear();
 	}
 
 
@@ -441,10 +435,8 @@ public:
 
 		if (pWnd == (CXWnd*)APW_EditBox  && Message == 6) // Pressed ENTER
 		{
-			CHAR szTemp[MAX_STRING] = { 0 };
-			GetEditBoxItem(szTemp, MAX_STRING);
-			ReplaceWaypointWith(szTemp);
-			GetPathListItem(szTemp, MAX_STRING);
+			ReplaceWaypointWith(GetEditBoxItem().c_str());
+			auto temp = GetPathListItem();
 
 			//			sprintf_s(INIFileNameTemp,"%s\\%s\\%s.ini",gszINIPath,"MQ2AdvPath",PathZone);
 			//			sprintf_s(szTemp,"%.2f %.2f %.2f %s",CurList->Y,CurList->X,CurList->Z,CurList->CheckPoint);
@@ -457,18 +449,16 @@ public:
 
 		if (pWnd == (CXWnd*)APW_PathList && Message == 1)
 		{
-			CHAR szTemp[MAX_STRING] = { 0 };
-			GetPathListItem(szTemp, MAX_STRING);
+			auto temp = GetPathListItem();
 			ClearAll();
-			LoadPath(szTemp);
+			LoadPath(temp.c_str());
 			return 0;
 		}
 		if (pWnd == (CXWnd*)APW_INIList && Message == 1)
 		{
 			CHAR szTemp[MAX_STRING] = { 0 };
 			if (StatusState == STATUS_OFF) {
-				GetINIListItem(szTemp, MAX_STRING);
-				SetCXStr(&APW_EditBox->InputText, szTemp);
+				APW_EditBox->InputText = GetINIListItem();
 				PlayWaypoint = APW_INIList->GetCurSel() + 1;
 				PlayOne = true;
 				StatusState = STATUS_ON;
@@ -490,19 +480,18 @@ public:
 			}
 
 
-			char Buffer[MAX_STRING] = { 0 };
-			GetPathListItem(Buffer, MAX_STRING);
+			auto Buffer = GetPathListItem();
 			if (Buffer[0] != 0)
 			{
 				char cmd[MAX_STRING] = { 0 };
-				sprintf_s(cmd, "%s%s%s%s%s%s%s%s", Buffer,
-					(APW_DoorChecked->Checked ? " Door" : " NoDoor"),
-					(APW_LoopChecked->Checked ? " Loop" : ""),
-					(APW_ReverseChecked->Checked ? " Reverse" : " Normal"),
-					(APW_SmartChecked->Checked ? " Smart" : ""),
-					(APW_SlowChecked->Checked ? " Slow" : " Fast"),
-					(APW_EvalChecked->Checked ? " Eval" : " NoEval"),
-					(APW_ZoneChecked->Checked ? " Zone" : ""));
+				sprintf_s(cmd, "%s%s%s%s%s%s%s%s", Buffer.c_str(),
+					(APW_DoorChecked->bChecked ? " Door" : " NoDoor"),
+					(APW_LoopChecked->bChecked ? " Loop" : ""),
+					(APW_ReverseChecked->bChecked ? " Reverse" : " Normal"),
+					(APW_SmartChecked->bChecked ? " Smart" : ""),
+					(APW_SlowChecked->bChecked ? " Slow" : " Fast"),
+					(APW_EvalChecked->bChecked ? " Eval" : " NoEval"),
+					(APW_ZoneChecked->bChecked ? " Zone" : ""));
 				MQPlayCommand(nullptr, "off");
 				MQPlayCommand(nullptr, cmd);
 				WriteChatf("GUI cmd = [%s]", cmd);
@@ -518,18 +507,17 @@ public:
 		}
 
 		if (pWnd == (CXWnd*)APW_RecordButton) {
-			char szTemp[MAX_STRING] = { 0 };
 			char cmd[MAX_STRING] = { 0 };
 
-			GetCXStr((PCXSTR)APW_EditBox->InputText, szTemp, MAX_STRING);
-			if (szTemp[0] != 0)
+			auto temp = APW_EditBox->InputText;
+			if (!temp.empty())
 			{
-				SetCXStr(&APW_EditBox->InputText, "");
+				APW_EditBox->InputText.clear();
 				if (StatusState == STATUS_OFF)
-					MQRecordCommand(nullptr, szTemp);
+					MQRecordCommand(nullptr, temp.mutable_data());
 				else if (FollowState == FOLLOW_RECORDING) // Recording a path
 				{
-					sprintf_s(cmd, "checkpoint %s", szTemp);
+					sprintf_s(cmd, "checkpoint %s", temp.c_str());
 					MQRecordCommand(nullptr, cmd);
 				}
 			}
@@ -563,8 +551,8 @@ void CreateMyWindow()
 	if (pSidlMgr->FindScreenPieceTemplate("AdvPathWnd")) {
 		MyWnd = new CMyWnd;
 		if (MyWnd) {
-			ReadWindowINI((PCSIDLWND)MyWnd);
-			WriteWindowINI((PCSIDLWND)MyWnd);
+			ReadWindowINI(MyWnd);
+			WriteWindowINI(MyWnd);
 			MyWnd->SetCheckMarks();
 			MyWnd->HideWin();
 		}
@@ -576,22 +564,22 @@ void DestroyMyWindow()
 	DebugSpewAlways("MQ2MyWnd::DestroyWindow()");
 	if (MyWnd)
 	{
-		WriteWindowINI((PCSIDLWND)MyWnd);
+		WriteWindowINI(MyWnd);
 		delete MyWnd;
 		MyWnd = 0;
 	}
 }
 
-PLUGIN_API VOID OnCleanUI() {
-	DestroyMyWindow();
+PLUGIN_API void OnCleanUI() {
+	DestroyMyWindow(); 
 }
 
-PLUGIN_API VOID OnReloadUI() {
+PLUGIN_API void OnReloadUI() {
 	if (gGameState == GAMESTATE_INGAME && pCharSpawn)
 		CreateMyWindow();
 }
 
-void ReadWindowINI(PCSIDLWND pWindow)
+void ReadWindowINI(CSidlScreenWnd* pWindow)
 {
 	pWindow->SetLocation({ (LONG)GetPrivateProfileInt("Settings", "ChatLeft", 164, INIFileName),
 		(LONG)GetPrivateProfileInt("Settings", "ChatTop", 357, INIFileName),
@@ -622,7 +610,7 @@ template <unsigned int _Size>LPSTR SafeItoa(int _Value,char(&_Buffer)[_Size], in
 	return "";
 }
 
-void WriteWindowINI(PCSIDLWND pWindow)
+void WriteWindowINI(CSidlScreenWnd* pWindow)
 {
 	CHAR szTemp[MAX_STRING] = { 0 };
 	if (pWindow->IsMinimized())
@@ -664,7 +652,7 @@ void DoPlayWindow()
 	if (MyWnd) {
 		MyWnd->APW_PathList->DeleteAll();
 
-		sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
+		sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
 
 		GetPrivateProfileString(nullptr, nullptr, nullptr, MyWnd->szList, MAX_STRING, INIFileNameTemp);
 		i = 0;
@@ -703,8 +691,7 @@ void WriteOtherSettings()
 
 inline PMAPLINE InitLine() {
 	typedef PMAPLINE(__cdecl *InitLineCALL) ();
-	PMQPLUGIN pLook = pPlugins;
-	while (pLook && _stricmp(pLook->szFilename, "MQ2Map")) pLook = pLook->pNext;
+	MQPlugin* pLook = GetPlugin("MQ2Map");
 	if (pLook)
 		if (InitLineCALL Request = (InitLineCALL)GetProcAddress(pLook->hModule, "MQ2MapAddLine"))
 			return Request();
@@ -713,8 +700,7 @@ inline PMAPLINE InitLine() {
 
 inline void DeleteLine(PMAPLINE pLine) {
 	typedef VOID(__cdecl *DeleteLineCALL) (PMAPLINE);
-	PMQPLUGIN pLook = pPlugins;
-	while (pLook && _stricmp(pLook->szFilename, "MQ2Map")) pLook = pLook->pNext;
+	MQPlugin* pLook = GetPlugin("MQ2Map");
 	if (pLook)
 		if (DeleteLineCALL Request = (DeleteLineCALL)GetProcAddress(pLook->hModule, "MQ2MapDeleteLine"))
 			Request(pLine);
@@ -734,7 +720,7 @@ void ListPaths()
 	CHAR szTemp[MAX_STRING] = { 0 };
 	CHAR szList[MAX_STRING] = { 0 };
 
-	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
+	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
 	GetPrivateProfileString(nullptr, nullptr, nullptr, szList, MAX_STRING, INIFileNameTemp);
 	sprintf_s(szTemp, "[MQ2AdvPath] Paths available in %s", GetShortZone(GetCharInfo()->zoneId));
 	WriteChatColor(szTemp, CONCOLOR_LIGHTBLUE);
@@ -763,7 +749,7 @@ int GetCustPaths(int kFlag)
 	CHAR szTemp[MAX_STRING] = { 0 };
 	CHAR szList[MAX_STRING] = { 0 };
 
-	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
+	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
 	GetPrivateProfileString(nullptr, nullptr, nullptr, szList, MAX_STRING, INIFileNameTemp);
 
 	char* p = (char*)szList;
@@ -1146,14 +1132,17 @@ void ReleaseKeys() {
 	DoLft(false);
 }
 
-void DoWalk(bool walk) {
-	if (GetGameState() == GAMESTATE_INGAME && pLocalPlayer) {
-		bool state_walking = (*EQADDR_RUNWALKSTATE) ? false : true;
-		float SpeedMultiplier = *((float*)&(((PSPAWNINFO)pLocalPlayer)->SpeedMultiplier));
-		if (SpeedMultiplier < 0) walk = false; // we're snared, dont go into walk mode no matter what
-		if ((walk && !state_walking) || (!walk && state_walking)) {
-			MQ2Globals::ExecuteCmd(FindMappableCommand("run_walk"), 1, 0);
-			MQ2Globals::ExecuteCmd(FindMappableCommand("run_walk"), 0, 0);
+void DoWalk(bool walk)
+{
+	if ((GetGameState() == GAMESTATE_INGAME) && pLocalPlayer) {
+		const bool state_walking = !*EQADDR_RUNWALKSTATE;
+		if (pLocalPlayer->SpeedMultiplier < 0)
+		{
+			walk = false; // we're snared, don't go into walk mode no matter what
+		}
+		if (walk != state_walking) {
+			ExecuteCmd(FindMappableCommand("run_walk"), true, nullptr);
+			ExecuteCmd(FindMappableCommand("run_walk"), false, nullptr);
 		}
 	}
 }
@@ -1166,12 +1155,12 @@ void DoFwd(bool hold, bool walk) {
 		//if( !GetCharInfo()->pSpawn->SpeedRun || GetCharInfo()->pSpawn->PossiblyStuck || !((((gbMoving) && GetCharInfo()->pSpawn->SpeedRun==0.0f) && (GetCharInfo()->pSpawn->Mount ==  NULL )) || (fabs(FindSpeed((PSPAWNINFO)pCharSpawn)) > 0.0f )) )
 		if (!GetCharInfo()->pSpawn->SpeedRun && held)
 			held = false;
-		if (!held) MQ2Globals::ExecuteCmd(FindMappableCommand("forward"), 1, 0);
+		if (!held) ExecuteCmd(FindMappableCommand("forward"), 1, 0);
 		held = true;
 	}
 	else {
 		DoWalk(false);
-		if (held) MQ2Globals::ExecuteCmd(FindMappableCommand("forward"), 0, 0);
+		if (held) ExecuteCmd(FindMappableCommand("forward"), 0, 0);
 		held = false;
 	}
 }
@@ -1180,11 +1169,11 @@ void DoBck(bool hold) {
 	static bool held = false;
 	if (hold) {
 		DoFwd(false);
-		if (!held) MQ2Globals::ExecuteCmd(FindMappableCommand("back"), 1, 0);
+		if (!held) ExecuteCmd(FindMappableCommand("back"), 1, 0);
 		held = true;
 	}
 	else {
-		if (held) MQ2Globals::ExecuteCmd(FindMappableCommand("back"), 0, 0);
+		if (held) ExecuteCmd(FindMappableCommand("back"), 0, 0);
 		held = false;
 	}
 }
@@ -1193,11 +1182,11 @@ void DoLft(bool hold) {
 	static bool held = false;
 	if (hold) {
 		DoRgt(false);
-		if (!held) MQ2Globals::ExecuteCmd(FindMappableCommand("strafe_left"), 1, 0);
+		if (!held) ExecuteCmd(FindMappableCommand("strafe_left"), 1, 0);
 		held = true;
 	}
 	else {
-		if (held) MQ2Globals::ExecuteCmd(FindMappableCommand("strafe_left"), 0, 0);
+		if (held) ExecuteCmd(FindMappableCommand("strafe_left"), 0, 0);
 		held = false;
 	}
 }
@@ -1206,11 +1195,11 @@ void DoRgt(bool hold) {
 	static bool held = false;
 	if (hold) {
 		DoLft(false);
-		if (!held) MQ2Globals::ExecuteCmd(FindMappableCommand("strafe_right"), 1, 0);
+		if (!held) ExecuteCmd(FindMappableCommand("strafe_right"), 1, 0);
 		held = true;
 	}
 	else {
-		if (held) MQ2Globals::ExecuteCmd(FindMappableCommand("strafe_right"), 0, 0);
+		if (held) ExecuteCmd(FindMappableCommand("strafe_right"), 0, 0);
 		held = false;
 	}
 }
@@ -1301,7 +1290,7 @@ PDOOR ClosestDoor() {
 	PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
 	FLOAT Distance = 100000.00;
 	PDOOR pDoor = nullptr;
-	for (DWORD Count = 0; Count<pDoorTable->NumEntries; Count++) {
+	for (int Count = 0; Count<pDoorTable->NumEntries; Count++) {
 		if (Distance > GetDistance3D(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z, pDoorTable->pDoor[Count]->DefaultX, pDoorTable->pDoor[Count]->DefaultY, pDoorTable->pDoor[Count]->DefaultZ)) {
 			Distance = GetDistance3D(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z, pDoorTable->pDoor[Count]->DefaultX, pDoorTable->pDoor[Count]->DefaultY, pDoorTable->pDoor[Count]->DefaultZ);
 			pDoor = pDoorTable->pDoor[Count];
@@ -1457,7 +1446,7 @@ void SavePath(const char* PathName, const char* PathZone) {
 		}
 	}
 
-	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, PathZone);
+	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, PathZone);
 	if (FollowPath.size()) {
 		WritePrivateProfileString(PathName, nullptr, nullptr, INIFileNameTemp);
 		int i = 1;
@@ -1476,7 +1465,7 @@ void SavePath(const char* PathName, const char* PathZone) {
 
 void LoadPath(const char* PathName) {
 	CHAR INIFileNameTemp[MAX_STRING] = { 0 };
-	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
+	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
 
 	if (MyWnd) MyWnd->APW_INIList->DeleteAll();
 
@@ -1516,8 +1505,7 @@ void LoadPath(const char* PathName) {
 	if (MyWnd && !FollowPath.empty()) {
 		for (i = 0;; i++) {
 			MyWnd->APW_PathList->SetCurSel(i);
-			MyWnd->GetPathListItem(szTemp, MAX_STRING);
-			if (_stricmp(szTemp, PathName) == 0)	break;
+			if (ci_equals(MyWnd->GetPathListItem(), PathName) == 0)	break;
 			if (szTemp[0] == 0)					break;
 		}
 
@@ -1788,7 +1776,7 @@ void RecordingWaypoints() {
 void FillInPath(char *PathName, std::list<Position>&thepath, std::map<std::string, std::list<Position>>&themap)
 {
 	CHAR INIFileNameTemp[MAX_STRING] = { 0 };
-	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
+	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
 	char szTemp[MAX_STRING] = { 0 };
 	int i = 1;
 	do {
@@ -1824,7 +1812,7 @@ std::string GetPathWeAreOn(char *PathName)
 	std::list<Position>thepath;
 	std::map<std::string, std::list<Position>>themap;
 	CHAR INIFileNameTemp[MAX_STRING] = { 0 };
-	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
+	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
 	//first get all sections in the ini
 	HANDLE fHandle = 0;
 	bool bDoAll = false;
@@ -1888,7 +1876,6 @@ std::string GetPathWeAreOn(char *PathName)
 }
 
 class MQ2AdvPathType : public MQ2Type {
-private:
 	char Temps[MAX_STRING];
 public:
 	enum AdvPathMembers {
@@ -1929,7 +1916,7 @@ public:
 		PathCount=35,
 		FirstWayPoint=36
 	};
-	MQ2AdvPathType() :MQ2Type("AdvPath") {
+	MQ2AdvPathType() : MQ2Type("AdvPath"), Temps{ 0 } {
 		TypeMember(Active);
 		TypeMember(State);
 		TypeMember(Waypoints);
@@ -1967,7 +1954,8 @@ public:
 		TypeMember(PathCount);
 		TypeMember(FirstWayPoint);
 	}
-	bool MQ2AdvPathType::GETMEMBER() {
+
+	virtual bool MQ2AdvPathType::GetMember(MQVarPtr VarPtr, const char* Member, char* Index, MQTypeVar& Dest) override {
 		auto CurList = FollowPath.begin();
 		auto EndList = FollowPath.end();
 		int i = 1;
@@ -1975,73 +1963,73 @@ public:
 
 		//WriteChatf("[MQ2AdvPath] AdvPath Member: %s %s",Member,Index);
 
-		PMQ2TYPEMEMBER pMember = MQ2AdvPathType::FindMember(Member);
+		MQTypeMember* pMember = MQ2AdvPathType::FindMember(Member);
 		if (pMember) switch ((AdvPathMembers)pMember->ID) {
 		case Active:										// Plugin on and Ready
 			Dest.DWord = (gbInZone && GetCharInfo() && GetCharInfo()->pSpawn && AdvPathStatus);
-			Dest.Type = pBoolType;
+			Dest.Type = mq::datatypes::pBoolType;
 			return true;
 		case State:											// FollowState, 0 = off, 1 = Following, 2 = Playing, 3 = Recording
 			Dest.DWord = FollowState;
-			Dest.Type = pIntType;
+			Dest.Type = mq::datatypes::pIntType;
 			return true;
 		case Waypoints:										// Number of Waypoints
 			Dest.DWord = FollowPath.size();
-			Dest.Type = pIntType;
+			Dest.Type = mq::datatypes::pIntType;
 			return true;
 		case NextWaypoint:									// Next Waypoint
 			Dest.DWord = PlayWaypoint;
-			Dest.Type = pIntType;
+			Dest.Type = mq::datatypes::pIntType;
 			return true;
 		case Y:												// Waypoint Y
 			while (CurList != EndList) {
 				if (i == atol(Index) || (Index[0] != 0 && !_stricmp(Index, CurList->CheckPoint))) {
 					Dest.Float = CurList->Y;
-					Dest.Type = pFloatType;
+					Dest.Type = mq::datatypes::pFloatType;
 					return true;
 				}
 				i++;
 				CurList++;
 			}
 			strcpy_s(Temps, "NULL");
-			Dest.Type = pStringType;
+			Dest.Type = mq::datatypes::pStringType;
 			Dest.Ptr = Temps;
 			return true;
 		case X:												// Waypoint X
 			while (CurList != EndList) {
 				if (i == atol(Index) || (Index[0] != 0 && !_stricmp(Index, CurList->CheckPoint))) {
 					Dest.Float = CurList->X;
-					Dest.Type = pFloatType;
+					Dest.Type = mq::datatypes::pFloatType;
 					return true;
 				}
 				i++;
 				CurList++;
 			}
 			strcpy_s(Temps, "NULL");
-			Dest.Type = pStringType;
+			Dest.Type = mq::datatypes::pStringType;
 			Dest.Ptr = Temps;
 			return true;
 		case Z:												// Waypoint Z
 			while (CurList != EndList) {
 				if (i == atol(Index) || (Index[0] != 0 && !_stricmp(Index, CurList->CheckPoint))) {
 					Dest.Float = CurList->Z;
-					Dest.Type = pFloatType;
+					Dest.Type = mq::datatypes::pFloatType;
 					return true;
 				}
 				i++;
 				CurList++;
 			}
 			strcpy_s(Temps, "NULL");
-			Dest.Type = pStringType;
+			Dest.Type = mq::datatypes::pStringType;
 			Dest.Ptr = Temps;
 			return true;
 		case Monitor:										// Spawn your following
 			Dest.Ptr = (PSPAWNINFO)GetSpawnByID(MonitorID);
-			Dest.Type = pSpawnType;
+			Dest.Type = mq::datatypes::pSpawnType;
 			return true;
 		case Idle:											// FollowIdle time when following and not moving
 			Dest.DWord = (FollowState && FollowIdle) ? (((long)clock() - FollowIdle) / 1000) : 0;
-			Dest.Type = pIntType;
+			Dest.Type = mq::datatypes::pIntType;
 			return true;
 		case Length:										// Estimated length off the follow path
 			if (FollowPath.size()) {
@@ -2050,102 +2038,102 @@ public:
 				if (FollowPath.size() > 1)	TheLength = ((FollowPath.size() - 1)*DISTANCE_BETWEN_LOG) + TheLength;
 			}
 			Dest.Float = TheLength;
-			Dest.Type = pFloatType;
+			Dest.Type = mq::datatypes::pFloatType;
 			return true;
 		case Following:
 			Dest.DWord = (FollowState == FOLLOW_FOLLOWING);
-			Dest.Type = pBoolType;
+			Dest.Type = mq::datatypes::pBoolType;
 			return true;
 		case Playing:
 			Dest.DWord = (FollowState == FOLLOW_PLAYING);
-			Dest.Type = pBoolType;
+			Dest.Type = mq::datatypes::pBoolType;
 			return true;
 		case Recording:
 			Dest.DWord = (FollowState == FOLLOW_RECORDING);
-			Dest.Type = pBoolType;
+			Dest.Type = mq::datatypes::pBoolType;
 			return true;
 		case Status:
 			Dest.DWord = StatusState;
-			Dest.Type = pIntType;
+			Dest.Type = mq::datatypes::pIntType;
 			return true;
 		case Paused:
 			Dest.DWord = (StatusState == STATUS_PAUSED);
-			Dest.Type = pBoolType;
+			Dest.Type = mq::datatypes::pBoolType;
 			return true;
 		case WaitingWarp:
 			Dest.DWord = MonitorWarp;
-			Dest.Type = pBoolType;
+			Dest.Type = mq::datatypes::pBoolType;
 			return true;
 		case Pulling:
 			Dest.DWord = PullMode;
-			Dest.Type = pBoolType;
+			Dest.Type = mq::datatypes::pBoolType;
 			return true;
 		case Fleeing:
 			Dest.DWord = IFleeing;
-			Dest.Type = pBoolType;
+			Dest.Type = mq::datatypes::pBoolType;
 			return true;
 		case Flag1:
-			Dest.Type = pStringType;
+			Dest.Type = mq::datatypes::pStringType;
 			Temps[0] = advFlag[1];
 			Temps[1] = '\0';
 			Dest.Ptr = Temps;
 			return true;
 		case Flag2:
-			Dest.Type = pStringType;
+			Dest.Type = mq::datatypes::pStringType;
 			Temps[0] = advFlag[2];
 			Temps[1] = '\0';
 			Dest.Ptr = Temps;
 			return true;
 		case Flag3:
-			Dest.Type = pStringType;
+			Dest.Type = mq::datatypes::pStringType;
 			Temps[0] = advFlag[3];
 			Temps[1] = '\0';
 			Dest.Ptr = Temps;
 			return true;
 		case Flag4:
-			Dest.Type = pStringType;
+			Dest.Type = mq::datatypes::pStringType;
 			Temps[0] = advFlag[4];
 			Temps[1] = '\0';
 			Dest.Ptr = Temps;
 			return true;
 		case Flag5:
-			Dest.Type = pStringType;
+			Dest.Type = mq::datatypes::pStringType;
 			Temps[0] = advFlag[5];
 			Temps[1] = '\0';
 			Dest.Ptr = Temps;
 			return true;
 		case Flag6:
-			Dest.Type = pStringType;
+			Dest.Type = mq::datatypes::pStringType;
 			Temps[0] = advFlag[6];
 			Temps[1] = '\0';
 			Dest.Ptr = Temps;
 			return true;
 		case Flag7:
-			Dest.Type = pStringType;
+			Dest.Type = mq::datatypes::pStringType;
 			Temps[0] = advFlag[7];
 			Temps[1] = '\0';
 			Dest.Ptr = Temps;
 			return true;
 		case Flag8:
-			Dest.Type = pStringType;
+			Dest.Type = mq::datatypes::pStringType;
 			Temps[0] = advFlag[8];
 			Temps[1] = '\0';
 			Dest.Ptr = Temps;
 			return true;
 		case Flag9:
-			Dest.Type = pStringType;
+			Dest.Type = mq::datatypes::pStringType;
 			Temps[0] = advFlag[9];
 			Temps[1] = '\0';
 			Dest.Ptr = Temps;
 			return true;
 		case Direction:
-			Dest.Type = pStringType;
+			Dest.Type = mq::datatypes::pStringType;
 			Temps[0] = PlayDirection == 1 ? 'N' : 'R';
 			Temps[1] = '\0';
 			Dest.Ptr = Temps;
 			return true;
 		case CustomSearch:
-			Dest.Type = pStringType;
+			Dest.Type = mq::datatypes::pStringType;
 			strcpy_s(Temps, custSearch);
 			Dest.Ptr = Temps;
 			return true;
@@ -2159,19 +2147,19 @@ public:
 						strcpy_s(Temps, CurList->CheckPoint);
 					}
 					Dest.Ptr = Temps;
-					Dest.Type = pStringType;
+					Dest.Type = mq::datatypes::pStringType;
 					return true;
 				}
 				i++;
 				CurList++;
 			}
 			strcpy_s(Temps, "NULL");
-			Dest.Type = pStringType;
+			Dest.Type = mq::datatypes::pStringType;
 			Dest.Ptr = Temps;
 			return true;
 		case CustomPaths:
 			Dest.DWord = GetCustPaths(0);
-			Dest.Type = pIntType;
+			Dest.Type = mq::datatypes::pIntType;
 			return true;
 		case Path:
 		{
@@ -2180,7 +2168,7 @@ public:
 				if (sPath.size()) {
 					strcpy_s(DataTypeTemp, sPath.c_str());
 					Dest.Ptr = &DataTypeTemp[0];
-					Dest.Type = pStringType;
+					Dest.Type = mq::datatypes::pStringType;
 					return true;
 				}
 			}
@@ -2191,11 +2179,11 @@ public:
 			if (Index[0]) {
 				if (IsNumber(Index)) {
 					Dest.DWord = false;
-					Dest.Type = pBoolType;
+					Dest.Type = mq::datatypes::pBoolType;
 					return true;
 				}
 				CHAR INIFileNameTemp[MAX_STRING] = { 0 };
-				sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
+				sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
 				GetPrivateProfileString(Index, "1", "", Temps, MAX_STRING, INIFileNameTemp);
 				if (!Temps[0]) {
 					Dest.DWord = false;
@@ -2203,17 +2191,17 @@ public:
 				else {
 					Dest.DWord = true;
 				}
-				Dest.Type = pBoolType;
+				Dest.Type = mq::datatypes::pBoolType;
 				return true;
 			}
 			Dest.DWord = false;
-			Dest.Type = pBoolType;
+			Dest.Type = mq::datatypes::pBoolType;
 			return true;
 		}
 		case PathCount:
 		{
 			CHAR INIFileNameTemp[MAX_STRING] = { 0 };
-            sprintf_s(INIFileNameTemp, "%s\\%s\\%s.ini", gszINIPath, "MQ2AdvPath", GetShortZone(GetCharInfo()->zoneId));
+            sprintf_s(INIFileNameTemp, "%s\\%s\\%s.ini", gPathConfig, "MQ2AdvPath", GetShortZone(GetCharInfo()->zoneId));
 	        //GetPrivateProfileString("","","",Temps,MAX_STRING,INIFileNameTemp);
 			DWORD count1 = GetPrivateProfileSectionNames(Temps, MAX_STRING, INIFileNameTemp);
 			if (count1) {
@@ -2235,7 +2223,7 @@ public:
 			} else {
                 Dest.DWord=0;
 			}
-                Dest.Type=pIntType;
+                Dest.Type=mq::datatypes::pIntType;
                 return true;
 		}
 		case FirstWayPoint:
@@ -2243,44 +2231,37 @@ public:
 			if (Index && Index[0]!='\0') {
 				if (IsNumber(Index)) {
 					strcpy_s(Temps,"NULL");
-					Dest.Type=pStringType;
+					Dest.Type=mq::datatypes::pStringType;
 					Dest.Ptr=Temps;
 					return true;
                 }
 				CHAR INIFileNameTemp[MAX_STRING] = { 0 };
-                sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
+                sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
 	            GetPrivateProfileString(Index,"1","",Temps,MAX_STRING,INIFileNameTemp);
 				if(Temps && Temps[0]=='\0') {
 				    strcpy_s(Temps,"NULL");
 				}
 				Dest.Ptr=Temps;
-                Dest.Type=pStringType;
+                Dest.Type=mq::datatypes::pStringType;
                 return true;
             }
             Dest.DWord=false;
-            Dest.Type=pBoolType;
+            Dest.Type=mq::datatypes::pBoolType;
             return true;
 		}
 		}
 		strcpy_s(DataTypeTemp, "NULL");
-		Dest.Type = pStringType;
+		Dest.Type = mq::datatypes::pStringType;
 		Dest.Ptr = &DataTypeTemp[0];
 		return true;
 	}
-	bool ToString(MQ2VARPTR VarPtr, PCHAR Destination) {
+	bool ToString(MQVarPtr VarPtr, PCHAR Destination) override {
 		strcpy_s(Destination, MAX_STRING, "TRUE");
 		return true;
 	}
-	bool FromData(MQ2VARPTR &VarPtr, MQ2TYPEVAR &Source) {
-		return false;
-	}
-	bool FromString(MQ2VARPTR &VarPtr, PCHAR Source) {
-		return false;
-	}
-	~MQ2AdvPathType() { }
 };
 
-BOOL dataAdvPath(PCHAR szName, MQ2TYPEVAR &Dest) {
+bool dataAdvPath(const char* szName, MQTypeVar &Dest) {
 	Dest.DWord = 1;
 	Dest.Type = pAdvPathType;
 	return true;
@@ -2379,7 +2360,7 @@ void MQAdvPathCommand(PSPAWNINFO pChar, PCHAR szLine) {
 }
 
 // Called once, when the plugin is to initialize
-PLUGIN_API VOID InitializePlugin() {
+PLUGIN_API void InitializePlugin() {
 	DebugSpewAlways("Initializing MQ2AdvPath");
 
 	AdvPathStatus = true;
@@ -2391,8 +2372,7 @@ PLUGIN_API VOID InitializePlugin() {
 	AddCommand("/advpath", MQAdvPathCommand);
 	pAdvPathType = new MQ2AdvPathType;
 	AddMQ2Data("AdvPath", dataAdvPath);
-	sprintf_s(Buffer, "%s\\MQ2AdvPath", gszINIPath);
-	errno = 0;
+	sprintf_s(Buffer, "%s\\MQ2AdvPath", gPathConfig);
 	if (_mkdir(Buffer) != 0 && errno != EEXIST)
 		WriteChatf("[MQ2AdvPath] Failed to create MQ2AdvPath directory");
 	AddXMLFile("MQUI_AdvPathWnd.xml");
@@ -2400,7 +2380,7 @@ PLUGIN_API VOID InitializePlugin() {
 }
 
 // Called once, when the plugin is to shutdown
-PLUGIN_API VOID ShutdownPlugin() {
+PLUGIN_API void ShutdownPlugin() {
 	DebugSpewAlways("Shutting down MQ2AdvPath");
 
 	DestroyMyWindow();
@@ -2415,7 +2395,7 @@ PLUGIN_API VOID ShutdownPlugin() {
 }
 
 // This is called every time MQ pulses
-PLUGIN_API VOID OnPulse() {
+PLUGIN_API void OnPulse() {
 	if (!gbInZone || !GetCharInfo() || !GetCharInfo()->pSpawn || !AdvPathStatus) return;
 
 	thisClock = (unsigned long)clock();
@@ -2495,7 +2475,7 @@ PLUGIN_API VOID OnPulse() {
 	}
 }
 
-PLUGIN_API VOID OnEndZone() {
+PLUGIN_API void OnEndZone() {
 	DebugSpewAlways("MQ2AdvPath::OnZoned()");
 	if (FollowState == FOLLOW_RECORDING && StatusState && SavePathName[0] != 0 && SavePathZone[0] != 0)
 		SavePath(SavePathName, SavePathZone);
@@ -2506,12 +2486,12 @@ PLUGIN_API VOID OnEndZone() {
 	}
 }
 
-PLUGIN_API VOID OnRemoveSpawn(PSPAWNINFO pSpawn) {
+PLUGIN_API void OnRemoveSpawn(PSPAWNINFO pSpawn) {
 	//DebugSpewAlways("MQ2AdvPath::OnRemoveSpawn(%s)", pSpawn->Name);
 	if (pSpawn->SpawnID == MonitorID) MonitorID = 0;
 }
 
-PLUGIN_API DWORD OnIncomingChat(PCHAR Line, DWORD Color) {
+PLUGIN_API bool OnIncomingChat(const char* Line, DWORD Color) {
 	if (!gbInZone || !GetCharInfo() || !GetCharInfo()->pSpawn || !AdvPathStatus) return 0;
 	if (!_stricmp(Line, "You have been summoned!") && FollowState) {
 		WriteChatf("[MQ2AdvPath] summon Detected");
