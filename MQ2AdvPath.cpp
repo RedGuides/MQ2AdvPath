@@ -575,7 +575,7 @@ PLUGIN_API void OnCleanUI() {
 }
 
 PLUGIN_API void OnReloadUI() {
-	if (gGameState == GAMESTATE_INGAME && pCharSpawn)
+	if (gGameState == GAMESTATE_INGAME && pLocalPlayer)
 		CreateMyWindow();
 }
 
@@ -1220,7 +1220,7 @@ void LookAt(FLOAT X, FLOAT Y, FLOAT Z) {
 				angle -= 512.0f;
 			if (angle < 0.0f)
 				angle += 512.0f;
-			((PSPAWNINFO)pCharSpawn)->Heading = (FLOAT)angle;
+			pControlledPlayer->Heading = (FLOAT)angle;
 			gFaceAngle = 10000.0f;
 			if (pChar->pSpawn->FeetWet) {
 				float locdist = GetDistance(pChar->pSpawn->X, pChar->pSpawn->Y, X, Y);
@@ -1627,7 +1627,7 @@ void EvalWaypoint(std::list<Position>::iterator &CurList)
 		char szLine[MAX_STRING] = { 0 };
 		strcpy_s(szLine, CurList->CheckPoint);
 		//WriteChatf("Executing %s",szLine);
-		HideDoCommand(((PSPAWNINFO)pCharSpawn), szLine, FALSE);
+		HideDoCommand(pLocalPlayer, szLine, FALSE);
 		/*
 		if (_strnicmp(CurList->CheckPoint,"/play",5)==0)
 		{
@@ -2023,9 +2023,8 @@ public:
 			Dest.Type = mq::datatypes::pStringType;
 			Dest.Ptr = Temps;
 			return true;
-		case Monitor:										// Spawn your following
-			Dest.Ptr = (PSPAWNINFO)GetSpawnByID(MonitorID);
-			Dest.Type = mq::datatypes::pSpawnType;
+		case Monitor:                                       // Spawn you're following
+			Dest = mq::datatypes::pSpawnType->MakeTypeVar(GetSpawnByID(MonitorID));
 			return true;
 		case Idle:											// FollowIdle time when following and not moving
 			Dest.DWord = (FollowState && FollowIdle) ? (((long)clock() - FollowIdle) / 1000) : 0;
