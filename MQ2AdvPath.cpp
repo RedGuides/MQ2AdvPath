@@ -190,7 +190,7 @@ void ReplaceWaypointWith(const char* s);
 void NextWaypoint();
 void ShowHelp(int helpFlag);
 
-std::vector<PMAPLINE>  pFollowPath;
+std::vector<MapViewLine*>  pFollowPath;
 
 unsigned long thisClock = clock();
 unsigned long lastClock = clock();
@@ -689,8 +689,8 @@ void WriteOtherSettings()
 ////
 ///////////////////////////////////////////////////////////////////////////////
 
-inline PMAPLINE InitLine() {
-	typedef PMAPLINE(__cdecl *InitLineCALL) ();
+inline MapViewLine* InitLine() {
+	typedef MapViewLine* (__cdecl *InitLineCALL) ();
 	MQPlugin* pLook = GetPlugin("MQ2Map");
 	if (pLook)
 		if (InitLineCALL Request = (InitLineCALL)GetProcAddress(pLook->hModule, "MQ2MapAddLine"))
@@ -698,8 +698,8 @@ inline PMAPLINE InitLine() {
 	return 0;
 }
 
-inline void DeleteLine(PMAPLINE pLine) {
-	typedef VOID(__cdecl *DeleteLineCALL) (PMAPLINE);
+inline void DeleteLine(MapViewLine* pLine) {
+	typedef VOID(__cdecl *DeleteLineCALL) (MapViewLine*);
 	MQPlugin* pLook = GetPlugin("MQ2Map");
 	if (pLook)
 		if (DeleteLineCALL Request = (DeleteLineCALL)GetProcAddress(pLook->hModule, "MQ2MapDeleteLine"))
@@ -1043,7 +1043,7 @@ void NextPath()
 	else if (PlayDirection == 1)
 		PlayWaypoint = 1;
 	else
-		PlayWaypoint = FollowPath.size();
+		PlayWaypoint = (long)FollowPath.size();
 }
 
 void MQRecordCommand(PSPAWNINFO pChar, PCHAR szLine) {
@@ -1659,7 +1659,7 @@ void NextWaypoint()
 		if (PlayLoop && PlayDirection == 1)
 			PlayWaypoint = 1;
 		else if (PlayLoop && PlayDirection == -1)
-			PlayWaypoint = FollowPath.size();
+			PlayWaypoint = (long)FollowPath.size();
 		else if (PullMode && PlayDirection == 1 && FollowPath.end()->CheckPoint[0] != '/') {
 			PlayDirection = -1;
 			PlayWaypoint += PlayDirection;
@@ -1682,7 +1682,7 @@ void NextWaypoint()
 	else
 	{
 		PlayWaypoint += PlayDirection * 3;			// Check we don't advance past either end.
-		if ((long)FollowPath.size() < PlayWaypoint) PlayWaypoint = FollowPath.size();
+		if ((long)FollowPath.size() < PlayWaypoint) PlayWaypoint = (long)FollowPath.size();
 		if (PlayWaypoint < 1) 						PlayWaypoint = 1;
 	}
 }
@@ -1974,7 +1974,7 @@ public:
 			Dest.Type = mq::datatypes::pIntType;
 			return true;
 		case Waypoints:										// Number of Waypoints
-			Dest.DWord = FollowPath.size();
+			Dest.DWord = (long)FollowPath.size();
 			Dest.Type = mq::datatypes::pIntType;
 			return true;
 		case NextWaypoint:									// Next Waypoint
