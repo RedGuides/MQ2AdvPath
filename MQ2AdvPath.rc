@@ -51,8 +51,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 9,2
- PRODUCTVERSION 9,2
+ FILEVERSION 10,0
+ PRODUCTVERSION 10,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -73,11 +73,11 @@ BEGIN
 #else
             VALUE "FileDescription", "MQ2AdvPath Release Version"
 #endif
-            VALUE "FileVersion", "9.2"
+            VALUE "FileVersion", "10.0"
             VALUE "InternalName", "MQ2AdvPath.dll"
             VALUE "OriginalFilename", "MQ2AdvPath.dll"
             VALUE "ProductName", "MQ2AdvPath"
-            VALUE "ProductVersion", "9.2"
+            VALUE "ProductVersion", "10.0"
         END
     END
     BLOCK "VarFileInfo"
