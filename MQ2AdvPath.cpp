@@ -1,14 +1,7 @@
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=//
-// Projet: MQ2AdvPath.cpp
+// Project: MQ2AdvPath.cpp
 // Author: A_Enchanter_00
-// version 8.1011 by eqmule, changed the way open doors works
-// version 9.0
-// version 9.1 Fixed Underwater checks, it will now correctly face the loc when in/under water. -eqmule
-// version 9.2 SwiftyMUSE 01-07-2019 Removed foreground detection since its in core
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=//
-//
-//
-//
 //
 //   AdvPath TLO (${AdvPath.Member})
 //			Active
@@ -66,7 +59,7 @@
 #include <direct.h>
 
 PreSetup("MQ2AdvPath");
-PLUGIN_VERSION(9.2);
+PLUGIN_VERSION(10.0);
 
 constexpr int FOLLOW_OFF = 0;
 constexpr int FOLLOW_FOLLOWING = 1;
@@ -104,24 +97,26 @@ struct Position {
 //    long PlayWaypoint;
 //} pPathInfo;
 
-int FollowState = FOLLOW_OFF;		// Active?
-int StatusState = STATUS_OFF;		// Active?
+int FollowState = FOLLOW_OFF;       // Active?
+int StatusState = STATUS_OFF;       // Active?
 
-int FollowSpawnDistance = 10;		// Active?
+bool InterceptFollow = true;        // Intercept the /follow command
 
-int FollowIdle = 0;				// FollowIdle time when Follow on?
-int NextClickDoor = 0;				// NextClickDoor when Follow on?
-int PauseDoor = 0;					// PauseDoor paused Follow on and near door?
+int FollowSpawnDistance = 10;       // Active?
+
+int FollowIdle = 0;                 // FollowIdle time when Follow on?
+int NextClickDoor = 0;              // NextClickDoor when Follow on?
+int PauseDoor = 0;                  // PauseDoor paused Follow on and near door?
 bool AutoOpenDoor = true;
 
-bool PlayOne = false;			// Play one frame only - used for debugging
-bool PlaySlow = false;			// Play Slow - turns on walk and doesn't skip points when in background
+bool PlayOne = false;               // Play one frame only - used for debugging
+bool PlaySlow = false;              // Play Slow - turns on walk and doesn't skip points when in background
 bool PlaySmart = false;
 bool PlayEval = true;
-int  PlayDirection = 1;				// Play Direction - replaces PlayReverse
-									//bool PlayReverse   = false;			// Play Reversed ?
-bool PlayLoop = false;			// Play Loop? a->b a->b a->b a->b ....
-								//bool PlayReturn  = false;			// Play Return? a->b b->a
+int  PlayDirection = 1;             // Play Direction - replaces PlayReverse
+                                    //bool PlayReverse   = false;        // Play Reversed ?
+bool PlayLoop = false;              // Play Loop? a->b a->b a->b a->b ....
+                                    //bool PlayReturn  = false;          // Play Return? a->b b->a
 long PlayWaypoint = 0;
 bool PlayZone = false;
 uint64_t PlayZoneTick = 0;
@@ -674,11 +669,13 @@ void DoPlayWindow()
 void ReadOtherSettings()
 {
 	GetPrivateProfileString("Settings", "CustomSearch", "0", custSearch, 64, INIFileName);
+	InterceptFollow = GetPrivateProfileBool("Settings", "InterceptFollow", InterceptFollow, INIFileName);
 }
 
 void WriteOtherSettings()
 {
 	WritePrivateProfileString("Settings", "CustomSearch", custSearch, INIFileName);
+	WritePrivateProfileBool("Settings", "InterceptFollow", InterceptFollow, INIFileName);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -831,14 +828,18 @@ void MQFollowCommand(PSPAWNINFO pChar, PCHAR szLine) {
 				doAutoOpenDoor = true;
 				doFollow = true;
 			}
+			else if (!_strnicmp(Buffer, "intercept", 9)) {
+				InterceptFollow = !InterceptFollow;
+				WriteChatf("[%s] will %s intercept the /follow command.", mqplugin::PluginName, InterceptFollow ? "now" : "no longer");
+			}
 			else if (!_strnicmp(Buffer, "help", 4)) {
 				ShowHelp(4);
 				return;
 			}
 			else {
-				if (atol(Buffer)) {
-					if (atol(Buffer) < 1) FollowSpawnDistance = 1;
-					else FollowSpawnDistance = atol(Buffer);
+				const int dist = GetIntFromString(Buffer, 0);
+				if (dist != 0) {
+					FollowSpawnDistance = dist < 1 ? 1 : dist;
 				}
 			}
 		} while (true);
@@ -2296,7 +2297,7 @@ void ShowHelp(int helpFlag) {
 		WriteChatColor("    /afollow help:", CONCOLOR_GREEN);
 		break;
 	case 4:
-		WriteChatColor("/afollow [on|off] [pause|unpause] [slow|fast] ", CONCOLOR_GREEN);
+		WriteChatColor("/afollow [on|off] [pause|unpause] [slow|fast] [intercept] ", CONCOLOR_GREEN);
 		WriteChatColor("/afollow spawn # [slow|fast] - default=fast", CONCOLOR_GREEN);
 		WriteChatColor("/afollow help", CONCOLOR_GREEN);
 	}
@@ -2350,6 +2351,7 @@ void MQAdvPathCommand(PSPAWNINFO pChar, PCHAR szLine) {
 		}
 		else if (!_strnicmp(Buffer, "save", 4)) {
 			WriteOtherSettings();
+			WriteChatf("[%s] Settings saved.", mqplugin::PluginName);
 			break;
 		}
 		else if (!_strnicmp(Buffer, "help", 4))
@@ -2492,15 +2494,19 @@ PLUGIN_API void OnRemoveSpawn(PSPAWNINFO pSpawn) {
 }
 
 PLUGIN_API bool OnIncomingChat(const char* Line, DWORD Color) {
-	if (!gbInZone || !GetCharInfo() || !GetCharInfo()->pSpawn || !AdvPathStatus) return 0;
+	if (!gbInZone || !GetCharInfo() || !GetCharInfo()->pSpawn || !AdvPathStatus)
+		return false;
 	if (!_stricmp(Line, "You have been summoned!") && FollowState) {
 		WriteChatf("[MQ2AdvPath] summon Detected");
 		ClearAll();
 	}
-	else if (!_strnicmp(Line, "You will now auto-follow", 24)) DoLft(true);
+	else if (InterceptFollow && !_strnicmp(Line, "You will now auto-follow", 24))
+		DoLft(true);
 	else if (!_strnicmp(Line, "You are no longer auto-follow", 29) || !_strnicmp(Line, "You must first target a group member to auto-follow.", 52)) {
-		if (FollowState) MQFollowCommand(GetCharInfo()->pSpawn, "off");
-		else MQFollowCommand(GetCharInfo()->pSpawn, "on");
+		if (FollowState)
+			MQFollowCommand(GetCharInfo()->pSpawn, "off");
+		else if (InterceptFollow)
+			MQFollowCommand(GetCharInfo()->pSpawn, "on");
 	}
-	return 0;
+	return false;
 }
