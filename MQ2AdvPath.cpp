@@ -152,12 +152,12 @@ long MaxChkPointDist = 0;
 std::list<Position>	FollowPath;			// FollowPath
 std::queue<std::string>   PathList;
 
-class MQ2AdvPathType *pAdvPathType = 0;
+class MQ2AdvPathType* pAdvPathType = nullptr;
 
-void MQRecordCommand(PSPAWNINFO pChar, PCHAR szLine);
-void MQPlayCommand(PSPAWNINFO pChar, PCHAR szLine);
-void MQFollowCommand(PSPAWNINFO pChar, PCHAR szLine);
-void MQAdvPathCommand(PSPAWNINFO pChar, PCHAR szLine);
+void MQRecordCommand(PlayerClient*, const char* szLine);
+void MQPlayCommand(PlayerClient*, const char* szLine);
+void MQFollowCommand(PlayerClient*, const char* szLine);
+void MQAdvPathCommand(PlayerClient*, const char* szLine);
 void ReleaseKeys();
 void DoWalk(bool walk = false);
 void DoFwd(bool hold, bool walk = false);
@@ -309,7 +309,7 @@ public:
 		APW_BreakFollowChecked->bChecked = iShowBreakFollow ? true:false;
 	}
 
-	void GetCheckMarks(void)
+	void GetCheckMarks()
 	{
 		iShowEval = APW_EvalChecked->bChecked;
 		iShowPause = APW_PauseChecked->bChecked;
@@ -324,19 +324,17 @@ public:
 		iShowBreakFollow = APW_BreakFollowChecked->bChecked;
 	}
 
-
-	void ShowWin(void)
+	void ShowWin()
 	{
-		((CXWnd*)this)->Show(1, 1);
+		Show(true);
 		SetVisible(true);
 	}
 
-	void HideWin(void)
+	void HideWin()
 	{
-		((CXWnd*)this)->Show(0, 0);
+		Show(false);
 		SetVisible(false);
 	}
-
 
 	CXStr GetPathListItem()
 	{
@@ -372,7 +370,7 @@ public:
 	}
 
 
-	void UpdateUI(void) { UpdateUI(0, 0, 0, 0, 0); }
+	void UpdateUI(void) { UpdateUI(0, 0, 0, 0, nullptr); }
 
 	void UpdateUI(int waypoint, float x, float y, float z, char *checkpoint)
 	{
@@ -412,9 +410,9 @@ public:
 	////
 	///////////////////////////////////////////////////////////////////////////////
 
-	int WndNotification(CXWnd *pWnd, unsigned int Message, void *unknown)
+	virtual int WndNotification(CXWnd *pWnd, unsigned int Message, void *unknown) override
 	{
-		if (pWnd == 0) {
+		if (pWnd == nullptr) {
 			if (Message == XWM_CLOSE) {
 				CreateMyWindow();
 				ShowWin();
@@ -422,13 +420,13 @@ public:
 			}
 		}
 
-		if ((pWnd == (CXWnd*)APW_StuckChecked) || (pWnd == (CXWnd*)APW_BreakPathChecked) || (pWnd == (CXWnd*)APW_BreakFollowChecked)) {
+		if (pWnd == APW_StuckChecked || pWnd == APW_BreakPathChecked || pWnd == APW_BreakFollowChecked) {
 			return 0;
 		}
 
 		if (pWnd->GetType() == UI_Button) GetCheckMarks();
 
-		if (pWnd == (CXWnd*)APW_EditBox  && Message == 6) // Pressed ENTER
+		if (pWnd == APW_EditBox  && Message == XWM_HITENTER)
 		{
 			ReplaceWaypointWith(GetEditBoxItem().c_str());
 			auto temp = GetPathListItem();
@@ -437,19 +435,19 @@ public:
 			//			sprintf_s(szTemp,"%.2f %.2f %.2f %s",CurList->Y,CurList->X,CurList->Z,CurList->CheckPoint);
 			//			WritePrivateProfileString(PathName,szTemp2,      szTemp,INIFileNameTemp);
 
-			///			SavePath(szTemp,GetShortZone(GetCharInfo()->zoneId));
+			///			SavePath(szTemp,GetShortZone(pLocalPC->zoneId));
 			//			LoadPath(szTemp);
 			return 0;
 		}
 
-		if (pWnd == (CXWnd*)APW_PathList && Message == 1)
+		if (pWnd == APW_PathList && Message == XWM_LCLICK)
 		{
 			auto temp = GetPathListItem();
 			ClearAll();
 			LoadPath(temp.c_str());
 			return 0;
 		}
-		if (pWnd == (CXWnd*)APW_INIList && Message == 1)
+		if (pWnd == APW_INIList && Message == XWM_LCLICK)
 		{
 			CHAR szTemp[MAX_STRING] = { 0 };
 			if (StatusState == STATUS_OFF) {
@@ -464,7 +462,7 @@ public:
 		}
 
 
-		if (pWnd == (CXWnd*)APW_PlayButton && Message == 1) {
+		if (pWnd == APW_PlayButton && Message == XWM_LCLICK) {
 
 			if (StatusState == STATUS_ON && FollowState == FOLLOW_RECORDING) // Recording a path
 			{
@@ -474,12 +472,11 @@ public:
 				return 0;
 			}
 
-
-			auto Buffer = GetPathListItem();
-			if (Buffer[0] != 0)
+			CXStr item = GetPathListItem();
+			if (!item.empty())
 			{
 				char cmd[MAX_STRING] = { 0 };
-				sprintf_s(cmd, "%s%s%s%s%s%s%s%s", Buffer.c_str(),
+				sprintf_s(cmd, "%s%s%s%s%s%s%s%s", item.c_str(),
 					(APW_DoorChecked->bChecked ? " Door" : " NoDoor"),
 					(APW_LoopChecked->bChecked ? " Loop" : ""),
 					(APW_ReverseChecked->bChecked ? " Reverse" : " Normal"),
@@ -596,45 +593,36 @@ void ReadWindowINI(CSidlScreenWnd* pWindow)
 	pWindow->SetBGColor(col.ARGB);
 }
 
-template <unsigned int _Size>LPSTR SafeItoa(int _Value,char(&_Buffer)[_Size], int _Radix)
-{
-	errno_t err = _itoa_s(_Value, _Buffer, _Radix);
-	if (!err) {
-		return _Buffer;
-	}
-	return "";
-}
-
 void WriteWindowINI(CSidlScreenWnd* pWindow)
 {
 	CHAR szTemp[MAX_STRING] = { 0 };
 	if (pWindow->IsMinimized())
 	{
-		WritePrivateProfileString("Settings", "ChatTop", SafeItoa(pWindow->GetOldLocation().top, szTemp, 10), INIFileName);
-		WritePrivateProfileString("Settings", "ChatBottom", SafeItoa(pWindow->GetOldLocation().bottom, szTemp, 10), INIFileName);
-		WritePrivateProfileString("Settings", "ChatLeft", SafeItoa(pWindow->GetOldLocation().left, szTemp, 10), INIFileName);
-		WritePrivateProfileString("Settings", "ChatRight", SafeItoa(pWindow->GetOldLocation().right, szTemp, 10), INIFileName);
+		WritePrivateProfileInt("Settings", "ChatTop", pWindow->GetOldLocation().top, INIFileName);
+		WritePrivateProfileInt("Settings", "ChatBottom", pWindow->GetOldLocation().bottom, INIFileName);
+		WritePrivateProfileInt("Settings", "ChatLeft", pWindow->GetOldLocation().left, INIFileName);
+		WritePrivateProfileInt("Settings", "ChatRight", pWindow->GetOldLocation().right, INIFileName);
 	}
 	else
 	{
-		WritePrivateProfileString("Settings", "ChatTop", SafeItoa(pWindow->GetLocation().top, szTemp, 10), INIFileName);
-		WritePrivateProfileString("Settings", "ChatBottom", SafeItoa(pWindow->GetLocation().bottom, szTemp, 10), INIFileName);
-		WritePrivateProfileString("Settings", "ChatLeft", SafeItoa(pWindow->GetLocation().left, szTemp, 10), INIFileName);
-		WritePrivateProfileString("Settings", "ChatRight", SafeItoa(pWindow->GetLocation().right, szTemp, 10), INIFileName);
+		WritePrivateProfileInt("Settings", "ChatTop", pWindow->GetLocation().top, INIFileName);
+		WritePrivateProfileInt("Settings", "ChatBottom", pWindow->GetLocation().bottom, INIFileName);
+		WritePrivateProfileInt("Settings", "ChatLeft", pWindow->GetLocation().left, INIFileName);
+		WritePrivateProfileInt("Settings", "ChatRight", pWindow->GetLocation().right, INIFileName);
 	}
-	WritePrivateProfileString("Settings", "Locked", SafeItoa(pWindow->IsLocked(), szTemp, 10), INIFileName);
-	WritePrivateProfileString("Settings", "Fades", SafeItoa(pWindow->GetFades(), szTemp, 10), INIFileName);
-	WritePrivateProfileString("Settings", "Delay", SafeItoa(pWindow->GetFadeDelay(), szTemp, 10), INIFileName);
-	WritePrivateProfileString("Settings", "Duration", SafeItoa(pWindow->GetFadeDuration(), szTemp, 10), INIFileName);
-	WritePrivateProfileString("Settings", "Alpha", SafeItoa(pWindow->GetAlpha(), szTemp, 10), INIFileName);
-	WritePrivateProfileString("Settings", "FadeToAlpha", SafeItoa(pWindow->GetFadeToAlpha(), szTemp, 10), INIFileName);
-	WritePrivateProfileString("Settings", "BGType", SafeItoa(pWindow->GetBGType(), szTemp, 10), INIFileName);
+	WritePrivateProfileInt("Settings", "Locked", pWindow->IsLocked(), INIFileName);
+	WritePrivateProfileInt("Settings", "Fades", pWindow->GetFades(), INIFileName);
+	WritePrivateProfileInt("Settings", "Delay", pWindow->GetFadeDelay(), INIFileName);
+	WritePrivateProfileInt("Settings", "Duration", pWindow->GetFadeDuration(), INIFileName);
+	WritePrivateProfileInt("Settings", "Alpha", pWindow->GetAlpha(), INIFileName);
+	WritePrivateProfileInt("Settings", "FadeToAlpha", pWindow->GetFadeToAlpha(), INIFileName);
+	WritePrivateProfileInt("Settings", "BGType", pWindow->GetBGType(), INIFileName);
 	ARGBCOLOR col = { 0 };
 	col.ARGB = pWindow->GetBGColor();
-	WritePrivateProfileString("Settings", "BGTint.alpha", SafeItoa(col.A, szTemp, 10), INIFileName);
-	WritePrivateProfileString("Settings", "BGTint.red", SafeItoa(col.R, szTemp, 10), INIFileName);
-	WritePrivateProfileString("Settings", "BGTint.green", SafeItoa(col.G, szTemp, 10), INIFileName);
-	WritePrivateProfileString("Settings", "BGTint.blue", SafeItoa(col.B, szTemp, 10), INIFileName);
+	WritePrivateProfileInt("Settings", "BGTint.alpha", col.A, INIFileName);
+	WritePrivateProfileInt("Settings", "BGTint.red", col.R, INIFileName);
+	WritePrivateProfileInt("Settings", "BGTint.green", col.G, INIFileName);
+	WritePrivateProfileInt("Settings", "BGTint.blue", col.B, INIFileName);
 }
 
 void DoPlayWindow()
@@ -647,7 +635,7 @@ void DoPlayWindow()
 	if (MyWnd) {
 		MyWnd->APW_PathList->DeleteAll();
 
-		sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
+		sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(pLocalPC->zoneId));
 
 		GetPrivateProfileString(nullptr, nullptr, nullptr, MyWnd->szList, MAX_STRING, INIFileNameTemp);
 		i = 0;
@@ -717,9 +705,9 @@ void ListPaths()
 	CHAR szTemp[MAX_STRING] = { 0 };
 	CHAR szList[MAX_STRING] = { 0 };
 
-	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
+	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(pLocalPC->zoneId));
 	GetPrivateProfileString(nullptr, nullptr, nullptr, szList, MAX_STRING, INIFileNameTemp);
-	sprintf_s(szTemp, "[MQ2AdvPath] Paths available in %s", GetShortZone(GetCharInfo()->zoneId));
+	sprintf_s(szTemp, "[MQ2AdvPath] Paths available in %s", GetShortZone(pLocalPC->zoneId));
 	WriteChatColor(szTemp, CONCOLOR_LIGHTBLUE);
 
 	char* p = (char*)szList;
@@ -746,7 +734,7 @@ int GetCustPaths(int kFlag)
 	CHAR szTemp[MAX_STRING] = { 0 };
 	CHAR szList[MAX_STRING] = { 0 };
 
-	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
+	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(pLocalPC->zoneId));
 	GetPrivateProfileString(nullptr, nullptr, nullptr, szList, MAX_STRING, INIFileNameTemp);
 
 	char* p = (char*)szList;
@@ -776,9 +764,9 @@ int GetCustPaths(int kFlag)
 //	Ingame commands:
 //	/afollow    # Follow's your Target
 */
-void MQFollowCommand(PSPAWNINFO pChar, PCHAR szLine) {
+void MQFollowCommand(PlayerClient*, const char* szLine) {
 	DebugSpewAlways("MQ2AdvPath::MQFollowCommand()");
-	if (!gbInZone || !GetCharInfo() || !GetCharInfo()->pSpawn || !AdvPathStatus) return;
+	if (!gbInZone || !pLocalPC || !pLocalPlayer || !AdvPathStatus) return;
 	bool doFollow = false;
 	bool doAutoOpenDoor = true;
 	long MyTarget = (pTarget) ? ((long)((PSPAWNINFO)pTarget)->SpawnID) : 0;
@@ -846,7 +834,7 @@ void MQFollowCommand(PSPAWNINFO pChar, PCHAR szLine) {
 	}
 	if (doFollow) {
 		ClearAll();
-		if (MyTarget == GetCharInfo()->pSpawn->SpawnID) MonitorID = 0;
+		if (MyTarget == pLocalPlayer->SpawnID) MonitorID = 0;
 		else MonitorID = MyTarget;
 
 		if (PSPAWNINFO pSpawn = (PSPAWNINFO)GetSpawnByID(MonitorID)) {
@@ -856,15 +844,15 @@ void MQFollowCommand(PSPAWNINFO pChar, PCHAR szLine) {
 			StatusState = STATUS_ON;
 			WriteChatf("[MQ2AdvPath] Following %s", pSpawn->Name);
 
-			MeMonitorX = GetCharInfo()->pSpawn->X; // MeMonitorX monitor your self
-			MeMonitorY = GetCharInfo()->pSpawn->Y; // MeMonitorY monitor your self
-			MeMonitorZ = GetCharInfo()->pSpawn->Z; // MeMonitorZ monitor your self
+			MeMonitorX = pLocalPlayer->X; // MeMonitorX monitor your self
+			MeMonitorY = pLocalPlayer->Y; // MeMonitorY monitor your self
+			MeMonitorZ = pLocalPlayer->Z; // MeMonitorZ monitor your self
 		}
 	}
 }
 
-void MQPlayCommand(PSPAWNINFO pChar, PCHAR szLine) {
-	if (!gbInZone || !GetCharInfo() || !GetCharInfo()->pSpawn || !AdvPathStatus)
+void MQPlayCommand(PlayerClient*, const char* szLine) {
+	if (!gbInZone || !pLocalPC || !pLocalPlayer || !AdvPathStatus)
 		return;
 	DebugSpewAlways("MQ2AdvPath::MQPlayCommand()");
 	bool doPlay = false;
@@ -1032,7 +1020,7 @@ void NextPath()
 		int i = 1;
 		float D, MinD = 100000;
 		while (CurList != EndList) {
-			D = GetDistance3D(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z, CurList->X, CurList->Y, CurList->Z);
+			D = GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, CurList->X, CurList->Y, CurList->Z);
 			if (D < MinD) {
 				MinD = D;
 				PlayWaypoint = i;
@@ -1047,8 +1035,8 @@ void NextPath()
 		PlayWaypoint = (long)FollowPath.size();
 }
 
-void MQRecordCommand(PSPAWNINFO pChar, PCHAR szLine) {
-	if (!gbInZone || !GetCharInfo() || !GetCharInfo()->pSpawn || !AdvPathStatus) return;
+void MQRecordCommand(PlayerClient*, const char* szLine) {
+	if (!gbInZone || !pLocalPC || !pLocalPlayer || !AdvPathStatus) return;
 	DebugSpewAlways("MQ2AdvPath::MQPlayCommand()");
 
 	long iParm = 0;
@@ -1080,7 +1068,7 @@ void MQRecordCommand(PSPAWNINFO pChar, PCHAR szLine) {
 			else if (Buffer1[0] == '\0' || !IsNumber(Buffer1)) {
 				MaxChkPointDist = 40;
 			}
-			SavePath(Buffer, GetShortZone(GetCharInfo()->zoneId));
+			SavePath(Buffer, GetShortZone(pLocalPC->zoneId));
 		}
 		return;
 	}
@@ -1110,17 +1098,17 @@ void MQRecordCommand(PSPAWNINFO pChar, PCHAR szLine) {
 		}
 		else {
 			strcpy_s(SavePathName, Buffer);
-			strcpy_s(SavePathZone, GetShortZone(GetCharInfo()->zoneId));
+			strcpy_s(SavePathZone, GetShortZone(pLocalPC->zoneId));
 		}
 
 		WriteChatf("[MQ2AdvPath] Recording Path: %s Zone: %s", SavePathName, SavePathZone);
-		MonitorID = GetCharInfo()->pSpawn->SpawnID;
+		MonitorID = pLocalPlayer->SpawnID;
 		AddWaypoint(MonitorID);
 		FollowState = FOLLOW_RECORDING;
 		StatusState = STATUS_ON;
-		MeMonitorX = GetCharInfo()->pSpawn->X; // MeMonitorX monitor your self
-		MeMonitorY = GetCharInfo()->pSpawn->Y; // MeMonitorY monitor your self
-		MeMonitorZ = GetCharInfo()->pSpawn->Z; // MeMonitorZ monitor your self
+		MeMonitorX = pLocalPlayer->X; // MeMonitorX monitor your self
+		MeMonitorY = pLocalPlayer->Y; // MeMonitorY monitor your self
+		MeMonitorZ = pLocalPlayer->Z; // MeMonitorZ monitor your self
 	}
 }
 
@@ -1153,15 +1141,15 @@ void DoFwd(bool hold, bool walk) {
 	if (hold) {
 		DoWalk(walk);
 		DoBck(false);
-		//if( !GetCharInfo()->pSpawn->SpeedRun || GetCharInfo()->pSpawn->PossiblyStuck || !((((gbMoving) && GetCharInfo()->pSpawn->SpeedRun==0.0f) && (GetCharInfo()->pSpawn->Mount ==  NULL )) || (fabs(FindSpeed((PSPAWNINFO)pCharSpawn)) > 0.0f )) )
-		if (!GetCharInfo()->pSpawn->SpeedRun && held)
+
+		if (!pLocalPlayer->SpeedRun && held)
 			held = false;
-		if (!held) ExecuteCmd(FindMappableCommand("forward"), 1, 0);
+		if (!held) ExecuteCmd(FindMappableCommand("forward"), true);
 		held = true;
 	}
 	else {
 		DoWalk(false);
-		if (held) ExecuteCmd(FindMappableCommand("forward"), 0, 0);
+		if (held) ExecuteCmd(FindMappableCommand("forward"), false);
 		held = false;
 	}
 }
@@ -1170,11 +1158,11 @@ void DoBck(bool hold) {
 	static bool held = false;
 	if (hold) {
 		DoFwd(false);
-		if (!held) ExecuteCmd(FindMappableCommand("back"), 1, 0);
+		if (!held) ExecuteCmd(FindMappableCommand("back"), true);
 		held = true;
 	}
 	else {
-		if (held) ExecuteCmd(FindMappableCommand("back"), 0, 0);
+		if (held) ExecuteCmd(FindMappableCommand("back"), false);
 		held = false;
 	}
 }
@@ -1183,11 +1171,11 @@ void DoLft(bool hold) {
 	static bool held = false;
 	if (hold) {
 		DoRgt(false);
-		if (!held) ExecuteCmd(FindMappableCommand("strafe_left"), 1, 0);
+		if (!held) ExecuteCmd(FindMappableCommand("strafe_left"), true);
 		held = true;
 	}
 	else {
-		if (held) ExecuteCmd(FindMappableCommand("strafe_left"), 0, 0);
+		if (held) ExecuteCmd(FindMappableCommand("strafe_left"), false);
 		held = false;
 	}
 }
@@ -1196,11 +1184,11 @@ void DoRgt(bool hold) {
 	static bool held = false;
 	if (hold) {
 		DoLft(false);
-		if (!held) ExecuteCmd(FindMappableCommand("strafe_right"), 1, 0);
+		if (!held) ExecuteCmd(FindMappableCommand("strafe_right"), true);
 		held = true;
 	}
 	else {
-		if (held) ExecuteCmd(FindMappableCommand("strafe_right"), 0, 0);
+		if (held) ExecuteCmd(FindMappableCommand("strafe_right"), false);
 		held = false;
 	}
 }
@@ -1212,7 +1200,7 @@ void DoStop() {
 }
 
 void LookAt(FLOAT X, FLOAT Y, FLOAT Z) {
-	if (PCHARINFO pChar = GetCharInfo())
+	if (PCHARINFO pChar = pLocalPC)
 	{
 		if (pChar->pSpawn)
 		{
@@ -1221,7 +1209,7 @@ void LookAt(FLOAT X, FLOAT Y, FLOAT Z) {
 				angle -= 512.0f;
 			if (angle < 0.0f)
 				angle += 512.0f;
-			pControlledPlayer->Heading = (FLOAT)angle;
+			pControlledPlayer->Heading = angle;
 			gFaceAngle = 10000.0f;
 			if (pChar->pSpawn->FeetWet) {
 				float locdist = GetDistance(pChar->pSpawn->X, pChar->pSpawn->Y, X, Y);
@@ -1261,8 +1249,7 @@ void ClearAll() {
 }
 
 void ClearOne(std::list<Position>::iterator &CurList) {
-	std::list<Position>::iterator PosList;
-	PosList = CurList;
+	auto PosList = CurList;
 	CurList->X = 0;
 	CurList->Y = 0;
 	CurList->Z = 0;
@@ -1271,7 +1258,7 @@ void ClearOne(std::list<Position>::iterator &CurList) {
 }
 
 void AddWaypoint(long SpawnID, bool Warping) {
-	if (PSPAWNINFO pSpawn = (PSPAWNINFO)GetSpawnByID(SpawnID)) {
+	if (PSPAWNINFO pSpawn = GetSpawnByID(SpawnID)) {
 		Position MonitorPosition;
 
 		MonitorPosition.Warping = Warping;
@@ -1288,12 +1275,12 @@ void AddWaypoint(long SpawnID, bool Warping) {
 }
 
 PDOOR ClosestDoor() {
-	PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
+	PDOORTABLE pDoorTable = pSwitchMgr;
 	FLOAT Distance = 100000.00;
 	PDOOR pDoor = nullptr;
 	for (int Count = 0; Count<pDoorTable->NumEntries; Count++) {
-		if (Distance > GetDistance3D(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z, pDoorTable->pDoor[Count]->DefaultX, pDoorTable->pDoor[Count]->DefaultY, pDoorTable->pDoor[Count]->DefaultZ)) {
-			Distance = GetDistance3D(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z, pDoorTable->pDoor[Count]->DefaultX, pDoorTable->pDoor[Count]->DefaultY, pDoorTable->pDoor[Count]->DefaultZ);
+		if (Distance > GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pDoorTable->pDoor[Count]->DefaultX, pDoorTable->pDoor[Count]->DefaultY, pDoorTable->pDoor[Count]->DefaultZ)) {
+			Distance = GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pDoorTable->pDoor[Count]->DefaultX, pDoorTable->pDoor[Count]->DefaultY, pDoorTable->pDoor[Count]->DefaultZ);
 			pDoor = pDoorTable->pDoor[Count];
 		}
 	}
@@ -1311,16 +1298,16 @@ void OpenDoor(bool force) {
 	if (!AutoOpenDoor)
 		return;
 	if (force) {
-		DoCommand(GetCharInfo()->pSpawn, "/click left door");
+		DoCommand(pLocalPlayer, "/click left door");
 	}
-	else if (PDOOR pDoor = (PDOOR)ClosestDoor()) {
-		//DoCommand(GetCharInfo()->pSpawn,"/doortarget id ");
-		if (GetDistance3D(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z, pDoor->DefaultX, pDoor->DefaultY, pDoor->DefaultZ) <  DISTANCE_OPEN_DOOR_CLOSE) {
+	else if (PDOOR pDoor = ClosestDoor()) {
+		//DoCommand(pLocalPlayer,"/doortarget id ");
+		if (GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pDoor->DefaultX, pDoor->DefaultY, pDoor->DefaultZ) <  DISTANCE_OPEN_DOOR_CLOSE) {
 			if (InFront(pDoor->X, pDoor->Y, ANGLE_OPEN_DOOR_CLOSE, false) && !IsOpenDoor(pDoor) && NextClickDoor < (long)clock()) {
 				CHAR szTemp[MAX_STRING] = { 0 };
 				sprintf_s(szTemp, "id %d", pDoor->ID);
-				DoorTarget(GetCharInfo()->pSpawn, szTemp);
-				DoCommand(GetCharInfo()->pSpawn, "/click left door");
+				DoorTarget(pLocalPlayer, szTemp);
+				DoCommand(pLocalPlayer, "/click left door");
 				NextClickDoor = (long)clock() + 100;
 				if ((PauseDoor - (long)clock()) < 0) {
 					PauseDoor = (long)clock() + 1000;
@@ -1328,12 +1315,12 @@ void OpenDoor(bool force) {
 				}
 			}
 		}
-		else if (GetDistance3D(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z, pDoor->DefaultX, pDoor->DefaultY, pDoor->DefaultZ) <  DISTANCE_OPEN_DOOR_LONG) {
+		else if (GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pDoor->DefaultX, pDoor->DefaultY, pDoor->DefaultZ) <  DISTANCE_OPEN_DOOR_LONG) {
 			if (InFront(pDoor->X, pDoor->Y, ANGLE_OPEN_DOOR_LONG, false) && !IsOpenDoor(pDoor) && NextClickDoor < (long)clock()) {
 				CHAR szTemp[MAX_STRING] = { 0 };
 				sprintf_s(szTemp, "id %d", pDoor->ID);
-				DoorTarget(GetCharInfo()->pSpawn, szTemp);
-				DoCommand(GetCharInfo()->pSpawn, "/click left door");
+				DoorTarget(pLocalPlayer, szTemp);
+				DoCommand(pLocalPlayer, "/click left door");
 				NextClickDoor = (long)clock() + 100;
 			}
 		}
@@ -1341,7 +1328,7 @@ void OpenDoor(bool force) {
 }
 
 bool InFront(float X, float Y, float AngleIn, bool Reverse) {
-	float Angle = ((atan2f(X - GetCharInfo()->pSpawn->X, Y - GetCharInfo()->pSpawn->Y) * 180.0f / (float)PI));
+	float Angle = ((atan2f(X - pLocalPlayer->X, Y - pLocalPlayer->Y) * 180.0f / (float)PI));
 	if (Angle<0)	Angle += 360;
 	Angle = Angle*1.42f;
 
@@ -1357,13 +1344,13 @@ bool InFront(float X, float Y, float AngleIn, bool Reverse) {
 	bool Low = false;
 	bool High = false;
 
-	float Angle1 = GetCharInfo()->pSpawn->Heading - AngleIn;
+	float Angle1 = pLocalPlayer->Heading - AngleIn;
 	if (Angle1<0) {
 		Low = true;
 		Angle1 += 512.0f;
 	}
 
-	float Angle2 = GetCharInfo()->pSpawn->Heading + AngleIn;
+	float Angle2 = pLocalPlayer->Heading + AngleIn;
 	if (Angle2>512.0f) {
 		High = true;
 		Angle2 -= 512.0f;
@@ -1466,7 +1453,7 @@ void SavePath(const char* PathName, const char* PathZone) {
 
 void LoadPath(const char* PathName) {
 	CHAR INIFileNameTemp[MAX_STRING] = { 0 };
-	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
+	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(pLocalPC->zoneId));
 
 	if (MyWnd) MyWnd->APW_INIList->DeleteAll();
 
@@ -1515,7 +1502,7 @@ void LoadPath(const char* PathName) {
 
 void FollowSpawn() {
 	if (FollowPath.size()) {
-		if (GetDistance3D(MeMonitorX, MeMonitorY, MeMonitorZ, GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z) > 50) {
+		if (GetDistance3D(MeMonitorX, MeMonitorY, MeMonitorZ, pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z) > 50) {
 			auto CurList = FollowPath.begin();
 			auto EndList = FollowPath.end();
 			do {
@@ -1532,7 +1519,7 @@ void FollowSpawn() {
 
 		bool run = false;
 
-		if (CurList->Warping && GetDistance3D(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z, CurList->X, CurList->Y, CurList->Z) > 50) {
+		if (CurList->Warping && GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, CurList->X, CurList->Y, CurList->Z) > 50) {
 			if (!MonitorWarp) {
 				WriteChatf("[MQ2AdvPath] Warping Wating");
 				DoStop();
@@ -1542,20 +1529,20 @@ void FollowSpawn() {
 		}
 		MonitorWarp = false;
 
-		if (PSPAWNINFO pSpawn = (PSPAWNINFO)GetSpawnByID(MonitorID)) {
-			if (GetDistance3D(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z, pSpawn->X, pSpawn->Y, pSpawn->Z) >= 50) run = true;
-			if (GetDistance3D(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, GetCharInfo()->pSpawn->Z, pSpawn->X, pSpawn->Y, pSpawn->Z) <= FollowSpawnDistance) {
+		if (PSPAWNINFO pSpawn = GetSpawnByID(MonitorID)) {
+			if (GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pSpawn->X, pSpawn->Y, pSpawn->Z) >= 50) run = true;
+			if (GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pSpawn->X, pSpawn->Y, pSpawn->Z) <= FollowSpawnDistance) {
 				DoStop();
 				return;
 			}
 		}
 		else if ((FollowPath.size()*DISTANCE_BETWEN_LOG) >= 20) run = true;
-		//		 else if( GetDistance3D(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,GetCharInfo()->pSpawn->Z,CurList->X,CurList->Y,CurList->Z) >= 20 ) run = true;
+		//		 else if( GetDistance3D(pLocalPlayer->X,pLocalPlayer->Y,pLocalPlayer->Z,CurList->X,CurList->Y,CurList->Z) >= 20 ) run = true;
 
 
 
-		//		if( ( gbInForeground && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > DISTANCE_BETWEN_LOG ) || ( !gbInForeground && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > (DISTANCE_BETWEN_LOG+10) ) ) {
-		if (GetDistance(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, CurList->X, CurList->Y) > DISTANCE_BETWEN_LOG + DistanceMod) {
+		//		if( ( gbInForeground && GetDistance(pLocalPlayer->X,pLocalPlayer->Y,CurList->X,CurList->Y) > DISTANCE_BETWEN_LOG ) || ( !gbInForeground && GetDistance(pLocalPlayer->X,pLocalPlayer->Y,CurList->X,CurList->Y) > (DISTANCE_BETWEN_LOG+10) ) ) {
+		if (GetDistance(pLocalPlayer->X, pLocalPlayer->Y, CurList->X, CurList->Y) > DISTANCE_BETWEN_LOG + DistanceMod) {
 			LookAt(CurList->X, CurList->Y, CurList->Z);
 			if ((PauseDoor - (long)clock()) < 300) {
 				if (run) DoFwd(true);
@@ -1701,13 +1688,13 @@ void FollowWaypoints() {
 	do {
 		if (CurList == EndList) break;
 		if (WaypointIndex == PlayWaypoint) {
-			//				if( ( GetForegroundWindow()==EQhWnd && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > DISTANCE_BETWEN_LOG ) || ( GetForegroundWindow()!=EQhWnd && GetDistance(GetCharInfo()->pSpawn->X,GetCharInfo()->pSpawn->Y,CurList->X,CurList->Y) > (DISTANCE_BETWEN_LOG+10) ) )
+			//				if( ( GetForegroundWindow()==EQhWnd && GetDistance(pLocalPlayer->X,pLocalPlayer->Y,CurList->X,CurList->Y) > DISTANCE_BETWEN_LOG ) || ( GetForegroundWindow()!=EQhWnd && GetDistance(pLocalPlayer->X,pLocalPlayer->Y,CurList->X,CurList->Y) > (DISTANCE_BETWEN_LOG+10) ) )
 
 			// Allow X,Y,Z = 0 to match current position
 			if (CurList->X == 0 && CurList->Y == 0 && CurList->Z == 0)
 				d = 0;
 			else
-				d = GetDistance(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, CurList->X, CurList->Y);
+				d = GetDistance(pLocalPlayer->X, pLocalPlayer->Y, CurList->X, CurList->Y);
 
 			if (d > DISTANCE_BETWEN_LOG + DistanceMod) {
 				LookAt(CurList->X, CurList->Y, CurList->Z);
@@ -1764,7 +1751,7 @@ void ClearLag() {
 
 void RecordingWaypoints() {
 	if (MonitorID) {
-		if (PSPAWNINFO pSpawn = (PSPAWNINFO)GetSpawnByID(MonitorID)) {
+		if (PSPAWNINFO pSpawn = GetSpawnByID(MonitorID)) {
 			if (GetDistance3D(MonitorX, MonitorY, MonitorZ, pSpawn->X, pSpawn->Y, pSpawn->Z) > 100) {
 				WriteChatf("[MQ2AdvPath] Warping Detected on %s", pSpawn->Name);
 				AddWaypoint(MonitorID, true);
@@ -1777,7 +1764,7 @@ void RecordingWaypoints() {
 void FillInPath(char *PathName, std::list<Position>&thepath, std::map<std::string, std::list<Position>>&themap)
 {
 	CHAR INIFileNameTemp[MAX_STRING] = { 0 };
-	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
+	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(pLocalPC->zoneId));
 	char szTemp[MAX_STRING] = { 0 };
 	int i = 1;
 	do {
@@ -1813,7 +1800,7 @@ std::string GetPathWeAreOn(char *PathName)
 	std::list<Position>thepath;
 	std::map<std::string, std::list<Position>>themap;
 	CHAR INIFileNameTemp[MAX_STRING] = { 0 };
-	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
+	sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(pLocalPC->zoneId));
 	//first get all sections in the ini
 	HANDLE fHandle = 0;
 	bool bDoAll = false;
@@ -1861,10 +1848,9 @@ std::string GetPathWeAreOn(char *PathName)
 			std::string Name;
 		} ShortDist{ 0, "" };
 		ShortDist.Shortestdist = 1000000.0;
-		PSPAWNINFO pLPlayer = (PSPAWNINFO)pLocalPlayer;
-		for (std::map<std::string, std::list<Position>>::iterator m = themap.begin(); m != themap.end(); m++) {
-			for (std::list<Position>::iterator l = m->second.begin(); l != m->second.end(); l++) {
-				FLOAT fDist3D = GetDistance3D(pLPlayer->X, pLPlayer->Y, pLPlayer->Z, (*l).X, (*l).Y, (*l).Z);
+		for (auto m = themap.begin(); m != themap.end(); m++) {
+			for (auto l = m->second.begin(); l != m->second.end(); l++) {
+				FLOAT fDist3D = GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, (*l).X, (*l).Y, (*l).Z);
 				if (fDist3D<ShortDist.Shortestdist) {
 					ShortDist.Shortestdist = fDist3D;
 					ShortDist.Name = m->first;
@@ -1967,7 +1953,7 @@ public:
 		MQTypeMember* pMember = MQ2AdvPathType::FindMember(Member);
 		if (pMember) switch ((AdvPathMembers)pMember->ID) {
 		case Active:										// Plugin on and Ready
-			Dest.DWord = (gbInZone && GetCharInfo() && GetCharInfo()->pSpawn && AdvPathStatus);
+			Dest.DWord = (gbInZone && pLocalPC && pLocalPlayer && AdvPathStatus);
 			Dest.Type = mq::datatypes::pBoolType;
 			return true;
 		case State:											// FollowState, 0 = off, 1 = Following, 2 = Playing, 3 = Recording
@@ -2034,7 +2020,7 @@ public:
 		case Length:										// Estimated length off the follow path
 			if (FollowPath.size()) {
 				CurList = FollowPath.begin();
-				TheLength = GetDistance(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, CurList->X, CurList->Y);
+				TheLength = GetDistance(pLocalPlayer->X, pLocalPlayer->Y, CurList->X, CurList->Y);
 				if (FollowPath.size() > 1)	TheLength = ((FollowPath.size() - 1)*DISTANCE_BETWEN_LOG) + TheLength;
 			}
 			Dest.Float = TheLength;
@@ -2183,7 +2169,7 @@ public:
 					return true;
 				}
 				CHAR INIFileNameTemp[MAX_STRING] = { 0 };
-				sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
+				sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(pLocalPC->zoneId));
 				GetPrivateProfileString(Index, "1", "", Temps, MAX_STRING, INIFileNameTemp);
 				if (!Temps[0]) {
 					Dest.DWord = false;
@@ -2201,7 +2187,7 @@ public:
 		case PathCount:
 		{
 			CHAR INIFileNameTemp[MAX_STRING] = { 0 };
-            sprintf_s(INIFileNameTemp, "%s\\%s\\%s.ini", gPathConfig, "MQ2AdvPath", GetShortZone(GetCharInfo()->zoneId));
+            sprintf_s(INIFileNameTemp, "%s\\%s\\%s.ini", gPathConfig, "MQ2AdvPath", GetShortZone(pLocalPC->zoneId));
 	        //GetPrivateProfileString("","","",Temps,MAX_STRING,INIFileNameTemp);
 			DWORD count1 = GetPrivateProfileSectionNames(Temps, MAX_STRING, INIFileNameTemp);
 			if (count1) {
@@ -2236,7 +2222,7 @@ public:
 					return true;
                 }
 				CHAR INIFileNameTemp[MAX_STRING] = { 0 };
-                sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(GetCharInfo()->zoneId));
+                sprintf_s(INIFileNameTemp, "%s\\MQ2AdvPath\\%s.ini", gPathConfig, GetShortZone(pLocalPC->zoneId));
 	            GetPrivateProfileString(Index,"1","",Temps,MAX_STRING,INIFileNameTemp);
 				if(Temps && Temps[0]=='\0') {
 				    strcpy_s(Temps,"NULL");
@@ -2305,8 +2291,8 @@ void ShowHelp(int helpFlag) {
 	WriteChatColor("========================================", CONCOLOR_YELLOW);
 }
 // Set Active Status true or false.
-void MQAdvPathCommand(PSPAWNINFO pChar, PCHAR szLine) {
-	if (!gbInZone || !GetCharInfo() || !GetCharInfo()->pSpawn) return;
+void MQAdvPathCommand(PlayerClient*, const char* szLine) {
+	if (!gbInZone || !pLocalPC || !pLocalPlayer) return;
 	DebugSpewAlways("MQ2AdvPath::MQAdvPathCommand()");
 	long iParm = 0;
 	do {
@@ -2398,7 +2384,7 @@ PLUGIN_API void ShutdownPlugin() {
 
 // This is called every time MQ pulses
 PLUGIN_API void OnPulse() {
-	if (!gbInZone || !GetCharInfo() || !GetCharInfo()->pSpawn || !AdvPathStatus) return;
+	if (!gbInZone || !pLocalPC || !pLocalPlayer || !AdvPathStatus) return;
 
 	thisClock = (unsigned long)clock();
 	DistanceMod = ((thisClock - lastClock + 15)*(thisClock - lastClock + 15)) / 1000;
@@ -2424,9 +2410,9 @@ PLUGIN_API void OnPulse() {
 
 	}
 
-	MeMonitorX = GetCharInfo()->pSpawn->X; // MeMonitorX monitor your self
-	MeMonitorY = GetCharInfo()->pSpawn->Y; // MeMonitorY monitor your self
-	MeMonitorZ = GetCharInfo()->pSpawn->Z; // MeMonitorZ monitor your self
+	MeMonitorX = pLocalPlayer->X; // MeMonitorX monitor your self
+	MeMonitorY = pLocalPlayer->Y; // MeMonitorY monitor your self
+	MeMonitorZ = pLocalPlayer->Z; // MeMonitorZ monitor your self
 
 	if (FollowPath.size()) {
 		auto CurList = FollowPath.begin();
@@ -2435,9 +2421,9 @@ PLUGIN_API void OnPulse() {
 		Position LastList;			// FollowPath
 
 		if (FollowState == FOLLOW_FOLLOWING) {
-			LastList.Z = GetCharInfo()->pSpawn->Z;
-			LastList.Y = GetCharInfo()->pSpawn->Y;
-			LastList.X = GetCharInfo()->pSpawn->X;
+			LastList.Z = pLocalPlayer->Z;
+			LastList.Y = pLocalPlayer->Y;
+			LastList.X = pLocalPlayer->X;
 		}
 		else {
 			LastList.Z = CurList->Z;
@@ -2494,7 +2480,7 @@ PLUGIN_API void OnRemoveSpawn(PSPAWNINFO pSpawn) {
 }
 
 PLUGIN_API bool OnIncomingChat(const char* Line, DWORD Color) {
-	if (!gbInZone || !GetCharInfo() || !GetCharInfo()->pSpawn || !AdvPathStatus)
+	if (!gbInZone || !pLocalPC || !pLocalPlayer || !AdvPathStatus)
 		return false;
 	if (!_stricmp(Line, "You have been summoned!") && FollowState) {
 		WriteChatf("[MQ2AdvPath] summon Detected");
@@ -2504,9 +2490,9 @@ PLUGIN_API bool OnIncomingChat(const char* Line, DWORD Color) {
 		DoLft(true);
 	else if (!_strnicmp(Line, "You are no longer auto-follow", 29) || !_strnicmp(Line, "You must first target a group member to auto-follow.", 52)) {
 		if (FollowState)
-			MQFollowCommand(GetCharInfo()->pSpawn, "off");
+			MQFollowCommand(pLocalPlayer, "off");
 		else if (InterceptFollow)
-			MQFollowCommand(GetCharInfo()->pSpawn, "on");
+			MQFollowCommand(pLocalPlayer, "on");
 	}
 	return false;
 }
