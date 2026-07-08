@@ -1020,7 +1020,7 @@ void NextPath()
 		int i = 1;
 		float D, MinD = 100000;
 		while (CurList != EndList) {
-			D = GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, CurList->X, CurList->Y, CurList->Z);
+			D = GetDistance(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, CurList->X, CurList->Y, CurList->Z);
 			if (D < MinD) {
 				MinD = D;
 				PlayWaypoint = i;
@@ -1279,8 +1279,8 @@ PDOOR ClosestDoor() {
 	FLOAT Distance = 100000.00;
 	PDOOR pDoor = nullptr;
 	for (int Count = 0; Count<pDoorTable->NumEntries; Count++) {
-		if (Distance > GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pDoorTable->pDoor[Count]->DefaultX, pDoorTable->pDoor[Count]->DefaultY, pDoorTable->pDoor[Count]->DefaultZ)) {
-			Distance = GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pDoorTable->pDoor[Count]->DefaultX, pDoorTable->pDoor[Count]->DefaultY, pDoorTable->pDoor[Count]->DefaultZ);
+		if (Distance > GetDistance(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pDoorTable->pDoor[Count]->DefaultX, pDoorTable->pDoor[Count]->DefaultY, pDoorTable->pDoor[Count]->DefaultZ)) {
+			Distance = GetDistance(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pDoorTable->pDoor[Count]->DefaultX, pDoorTable->pDoor[Count]->DefaultY, pDoorTable->pDoor[Count]->DefaultZ);
 			pDoor = pDoorTable->pDoor[Count];
 		}
 	}
@@ -1302,7 +1302,7 @@ void OpenDoor(bool force) {
 	}
 	else if (PDOOR pDoor = ClosestDoor()) {
 		//DoCommand(pLocalPlayer,"/doortarget id ");
-		if (GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pDoor->DefaultX, pDoor->DefaultY, pDoor->DefaultZ) <  DISTANCE_OPEN_DOOR_CLOSE) {
+		if (GetDistance(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pDoor->DefaultX, pDoor->DefaultY, pDoor->DefaultZ) <  DISTANCE_OPEN_DOOR_CLOSE) {
 			if (InFront(pDoor->X, pDoor->Y, ANGLE_OPEN_DOOR_CLOSE, false) && !IsOpenDoor(pDoor) && NextClickDoor < (long)clock()) {
 				CHAR szTemp[MAX_STRING] = { 0 };
 				sprintf_s(szTemp, "id %d", pDoor->ID);
@@ -1315,7 +1315,7 @@ void OpenDoor(bool force) {
 				}
 			}
 		}
-		else if (GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pDoor->DefaultX, pDoor->DefaultY, pDoor->DefaultZ) <  DISTANCE_OPEN_DOOR_LONG) {
+		else if (GetDistance(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pDoor->DefaultX, pDoor->DefaultY, pDoor->DefaultZ) <  DISTANCE_OPEN_DOOR_LONG) {
 			if (InFront(pDoor->X, pDoor->Y, ANGLE_OPEN_DOOR_LONG, false) && !IsOpenDoor(pDoor) && NextClickDoor < (long)clock()) {
 				CHAR szTemp[MAX_STRING] = { 0 };
 				sprintf_s(szTemp, "id %d", pDoor->ID);
@@ -1405,7 +1405,7 @@ void SavePath(const char* PathName, const char* PathZone) {
 			}
 			if (MaxChkPointDist) {
 				//if(GetDistance3D(CurList->X,CurList->Y,CurList->Z,LastX,LastY,LastZ) > 100) {
-				CurrentDist = CurrentDist + (long)GetDistance3D(CurList->X, CurList->Y, CurList->Z, LastX, LastY, LastZ);
+				CurrentDist = CurrentDist + (long)GetDistance(CurList->X, CurList->Y, CurList->Z, LastX, LastY, LastZ);
 				if (CurrentDist>MaxChkPointDist) {
 					CurrentDist = 0;
 					LastX = CurList->X;
@@ -1502,7 +1502,7 @@ void LoadPath(const char* PathName) {
 
 void FollowSpawn() {
 	if (FollowPath.size()) {
-		if (GetDistance3D(MeMonitorX, MeMonitorY, MeMonitorZ, pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z) > 50) {
+		if (GetDistance(MeMonitorX, MeMonitorY, MeMonitorZ, pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z) > 50) {
 			auto CurList = FollowPath.begin();
 			auto EndList = FollowPath.end();
 			do {
@@ -1519,7 +1519,7 @@ void FollowSpawn() {
 
 		bool run = false;
 
-		if (CurList->Warping && GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, CurList->X, CurList->Y, CurList->Z) > 50) {
+		if (CurList->Warping && GetDistance(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, CurList->X, CurList->Y, CurList->Z) > 50) {
 			if (!MonitorWarp) {
 				WriteChatf("[MQ2AdvPath] Warping Wating");
 				DoStop();
@@ -1530,8 +1530,8 @@ void FollowSpawn() {
 		MonitorWarp = false;
 
 		if (PSPAWNINFO pSpawn = GetSpawnByID(MonitorID)) {
-			if (GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pSpawn->X, pSpawn->Y, pSpawn->Z) >= 50) run = true;
-			if (GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pSpawn->X, pSpawn->Y, pSpawn->Z) <= FollowSpawnDistance) {
+			if (GetDistance(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pSpawn->X, pSpawn->Y, pSpawn->Z) >= 50) run = true;
+			if (GetDistance(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, pSpawn->X, pSpawn->Y, pSpawn->Z) <= FollowSpawnDistance) {
 				DoStop();
 				return;
 			}
@@ -1752,11 +1752,11 @@ void ClearLag() {
 void RecordingWaypoints() {
 	if (MonitorID) {
 		if (PSPAWNINFO pSpawn = GetSpawnByID(MonitorID)) {
-			if (GetDistance3D(MonitorX, MonitorY, MonitorZ, pSpawn->X, pSpawn->Y, pSpawn->Z) > 100) {
+			if (GetDistance(MonitorX, MonitorY, MonitorZ, pSpawn->X, pSpawn->Y, pSpawn->Z) > 100) {
 				WriteChatf("[MQ2AdvPath] Warping Detected on %s", pSpawn->Name);
 				AddWaypoint(MonitorID, true);
 			}
-			else if (GetDistance3D(MonitorX, MonitorY, MonitorZ, pSpawn->X, pSpawn->Y, pSpawn->Z) >= DISTANCE_BETWEN_LOG) AddWaypoint(MonitorID);
+			else if (GetDistance(MonitorX, MonitorY, MonitorZ, pSpawn->X, pSpawn->Y, pSpawn->Z) >= DISTANCE_BETWEN_LOG) AddWaypoint(MonitorID);
 		}
 	}
 }
@@ -1850,7 +1850,7 @@ std::string GetPathWeAreOn(char *PathName)
 		ShortDist.Shortestdist = 1000000.0;
 		for (auto m = themap.begin(); m != themap.end(); m++) {
 			for (auto l = m->second.begin(); l != m->second.end(); l++) {
-				FLOAT fDist3D = GetDistance3D(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, (*l).X, (*l).Y, (*l).Z);
+				FLOAT fDist3D = GetDistance(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z, (*l).X, (*l).Y, (*l).Z);
 				if (fDist3D<ShortDist.Shortestdist) {
 					ShortDist.Shortestdist = fDist3D;
 					ShortDist.Name = m->first;
